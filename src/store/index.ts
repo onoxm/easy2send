@@ -1,3 +1,5 @@
+import { selectProperties } from '@onoxm/utils'
+import { createStoreHook } from '@onoxm/zustand-tools'
 import { create } from 'zustand'
 import {
   createJSONStorage,
@@ -5,54 +7,30 @@ import {
   persist,
   subscribeWithSelector
 } from 'zustand/middleware'
-import { useShallow } from 'zustand/shallow'
 
 const initialState = {
   theme: 'light',
-  autostart: false,
+  ip: '',
+  port: 0,
+  savePath: '',
   version: '0.0.0'
 }
 
 export type StateType = typeof initialState
 
-const isSameValue = (arr: string[]) => new Set(arr).size !== arr.length
-
-const designateStateMethods: (
-  state: StateType,
-  designateStates: Partial<keyof StateType>[]
-) => Pick<StateType, (typeof designateStates)[number]> = (
-  state,
-  designateStates
-) => {
-  if (isSameValue(designateStates))
-    throw new Error('Each item in designateStates must be unique')
-
-  return designateStates
-    .map(key => ({ [key]: state[key] }))
-    .reduce((acc, current) => ({ ...acc, ...current }), {}) as Pick<
-    StateType,
-    (typeof designateStates)[number]
-  >
-}
-
-const useStore = create<StateType>()(
-  devtools(
-    subscribeWithSelector(
-      persist(() => initialState, {
-        name: 'ono-storage',
-        partialize: state =>
-          designateStateMethods(state, ['version', 'autostart', 'theme']),
-        storage: createJSONStorage(() => localStorage)
-      })
+const useStore = createStoreHook(
+  create<StateType>()(
+    devtools(
+      subscribeWithSelector(
+        persist(() => initialState, {
+          name: 'ono-storage',
+          partialize: state =>
+            selectProperties(state, ['version', 'theme', 'savePath']),
+          storage: createJSONStorage(() => localStorage)
+        })
+      )
     )
   )
 )
-
-type DesignateMethodType = <T extends Partial<keyof StateType>>(
-  designateStates: T[]
-) => Pick<StateType, T>
-
-export const useDesignateStore: DesignateMethodType = designateStates =>
-  useStore(useShallow(state => designateStateMethods(state, designateStates)))
 
 export default useStore

@@ -1,10 +1,9 @@
-import React from 'react'
+import { router } from '@/router'
+import '@unocss/reset/tailwind.css'
 import ReactDOM from 'react-dom/client'
-import App from './App'
-import './global.css'
+import { RouterProvider } from 'react-router'
+import 'virtual:uno.css'
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <RouterProvider router={router} />
 )

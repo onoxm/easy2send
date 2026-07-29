@@ -5,7 +5,7 @@ import {
 } from '@tauri-apps/plugin-notification'
 
 export const useNotification = () => {
-  const innerSendNotification = async (title: string, message: string) => {
+  const innerSendNotification = async (title: string, message?: string) => {
     let permissionGranted = await isPermissionGranted()
 
     if (!permissionGranted) {

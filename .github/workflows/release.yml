@@ -2,7 +2,7 @@ name: Release CI
 on:
   push:
     tags:
-      - 'v*'  # 当你推送一个以 'v' 开头的标签（如 v1.0.0）时触发
+      - 'v*'
 
 jobs:
   publish-tauri:
@@ -12,29 +12,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'   # macOS (Apple Silicon)
+          - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest'   # macOS (Intel)
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04'   # Linux
+          - platform: 'ubuntu-22.04'
             args: ''
-          - platform: 'windows-latest' # Windows
+          - platform: 'windows-latest'
             args: ''
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
-          cache: 'pnpm' # 如果你用 npm 或 yarn，请改为 'npm' 或 'yarn'
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -43,7 +46,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
       - name: Install frontend dependencies
-        run: pnpm install # 如果使用 npm 或 yarn，请改为 npm install 或 yarn install
+        run: pnpm install --config.ignore-scripts=false
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v1
@@ -58,3 +61,34 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Upload artifacts to public repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          PUBLIC_REPO="onoxm/easy2send-updates"
+          TAG_NAME="${{ github.ref_name }}"
+          BUNDLE_DIR="src-tauri/target/release/bundle"
+
+          # 确保公开仓库的 Release 存在
+          gh release view "$TAG_NAME" --repo "$PUBLIC_REPO" || \
+            gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
+              --title "$TAG_NAME" \
+              --notes "Automated update artifacts"
+
+          # 上传 Windows 产物
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/nsis/"*.exe* --repo "$PUBLIC_REPO" --clobber || true
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/msi/"*.msi* --repo "$PUBLIC_REPO" --clobber || true
+
+          # 上传 macOS 产物
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/dmg/"*.dmg* --repo "$PUBLIC_REPO" --clobber || true
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/macos/"*.app.tar.gz* --repo "$PUBLIC_REPO" --clobber || true
+
+          # 上传 Linux 产物
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/appimage/"*.AppImage* --repo "$PUBLIC_REPO" --clobber || true
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/deb/"*.deb* --repo "$PUBLIC_REPO" --clobber || true
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/rpm/"*.rpm* --repo "$PUBLIC_REPO" --clobber || true
+
+          # 上传 latest.json
+          gh release upload "$TAG_NAME" "$BUNDLE_DIR/../latest.json" --repo "$PUBLIC_REPO" --clobber || true

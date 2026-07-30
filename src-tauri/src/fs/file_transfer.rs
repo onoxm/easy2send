@@ -1,11 +1,11 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{oneshot, Mutex};
-use tauri::{AppHandle, Manager, Emitter};   // 关键：导入 Emitter trait
+use tokio::sync::{oneshot, Mutex}; // 关键：导入 Emitter trait
 
 const CHUNK_SIZE: usize = 1024 * 1024;
 
@@ -13,7 +13,7 @@ const CHUNK_SIZE: usize = 1024 * 1024;
 pub struct ServerState {
     pub cancel_sender: Option<oneshot::Sender<()>>,
     pub task_handle: Option<tauri::async_runtime::JoinHandle<()>>,
-    pub save_dir: PathBuf,  // 新增
+    pub save_dir: PathBuf, // 新增
 }
 
 impl Default for ServerState {
@@ -35,7 +35,7 @@ pub async fn start_server(
     state: tauri::State<'_, Arc<Mutex<ServerState>>>,
 ) -> Result<(), String> {
     let save_path = PathBuf::from(&save_dir);
-    
+
     // 验证路径（绝对路径）
     if !save_path.is_absolute() {
         return Err("保存路径必须是绝对路径".to_string());
@@ -54,7 +54,7 @@ pub async fn start_server(
         if state.cancel_sender.is_some() {
             return Err("服务器已在运行".to_string());
         }
-        state.save_dir = save_path;   // 移动所有权到 state
+        state.save_dir = save_path; // 移动所有权到 state
     }
 
     let (tx, rx) = oneshot::channel();
@@ -75,9 +75,7 @@ pub async fn start_server(
 }
 
 #[tauri::command]
-pub async fn stop_server(
-    state: tauri::State<'_, Arc<Mutex<ServerState>>>,
-) -> Result<(), String> {
+pub async fn stop_server(state: tauri::State<'_, Arc<Mutex<ServerState>>>) -> Result<(), String> {
     let mut state = state.lock().await;
     if let Some(sender) = state.cancel_sender.take() {
         let _ = sender.send(()); // 发送取消信号
@@ -89,11 +87,7 @@ pub async fn stop_server(
 }
 
 #[tauri::command]
-pub async fn send_file(
-    app: AppHandle,
-    addr: String,
-    file_path: String,
-) -> Result<(), String> {
+pub async fn send_file(app: AppHandle, addr: String, file_path: String) -> Result<(), String> {
     // 发送任务在后台执行，不阻塞 UI
     tauri::async_runtime::spawn(async move {
         if let Err(e) = run_client(&addr, &file_path, app).await {
@@ -105,7 +99,12 @@ pub async fn send_file(
 
 // ---------- 核心逻辑 ----------
 
-async fn run_server(addr: &str, app: AppHandle, mut cancel_rx: oneshot::Receiver<()>, save_dir: PathBuf) -> Result<()> {
+async fn run_server(
+    addr: &str,
+    app: AppHandle,
+    mut cancel_rx: oneshot::Receiver<()>,
+    save_dir: PathBuf,
+) -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     app.emit("server-status", "listening").unwrap();
 
@@ -137,7 +136,7 @@ async fn handle_client(stream: &mut TcpStream, app: AppHandle, save_dir: PathBuf
     let name_len = u32::from_be_bytes(len_buf) as usize;
 
     // 2. 读取文件名
-    let mut name_buf:Vec<u8> = vec![0u8; name_len];
+    let mut name_buf: Vec<u8> = vec![0u8; name_len];
     stream.read_exact(&mut name_buf).await?;
     let filename = String::from_utf8(name_buf)?;
 
@@ -147,7 +146,10 @@ async fn handle_client(stream: &mut TcpStream, app: AppHandle, save_dir: PathBuf
     let total_size = u64::from_be_bytes(size_buf);
 
     // 4. 准备保存路径（使用应用数据目录）
-    let app_dir = app.path().app_data_dir().unwrap_or(PathBuf::from("received"));
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or(PathBuf::from("received"));
     tokio::fs::create_dir_all(&app_dir).await?;
     // 使用传入的 save_dir 而非硬编码
     let file_path = save_dir.join(&filename);
@@ -195,7 +197,9 @@ async fn run_client(addr: &str, file_path: &str, app: AppHandle) -> Result<()> {
 
     loop {
         let n = file.read(&mut buffer).await?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         let chunk = &buffer[..n];
         let chunk_len = n as u32;
         stream.write_all(&chunk_len.to_be_bytes()).await?;
@@ -203,7 +207,8 @@ async fn run_client(addr: &str, file_path: &str, app: AppHandle) -> Result<()> {
         sent += n as u64;
 
         let progress = (sent as f64 / file_size as f64) * 100.0;
-        app.emit("send-progress", (sent, file_size, progress)).unwrap();
+        app.emit("send-progress", (sent, file_size, progress))
+            .unwrap();
     }
 
     app.emit("send-complete", filename).unwrap();

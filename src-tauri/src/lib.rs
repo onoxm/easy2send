@@ -12,8 +12,10 @@ use tokio::sync::Mutex;
 pub fn run() {
     let server_state = Arc::new(Mutex::new(file_transfer::ServerState::default()));
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(server_state)
         .setup(|app| create_tray(app))
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())

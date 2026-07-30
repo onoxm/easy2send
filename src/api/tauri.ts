@@ -16,7 +16,7 @@ import {
   writeFile as writeBinaryFile,
   writeTextFile
 } from '@tauri-apps/plugin-fs'
-// import { exit, relaunch } from '@tauri-apps/plugin-process'
+import { exit, relaunch } from '@tauri-apps/plugin-process'
 
 export type fileSaveType = 'jpeg' | 'png' | 'webp' | 'json'
 
@@ -26,8 +26,8 @@ type WindowBasicOperationType =
   | 'close'
   | 'top'
   | 'noTop'
-// | 'restart'
-// | 'exit'
+  | 'restart'
+  | 'exit'
 
 // 窗口操作
 export const windowBasicOperation = (
@@ -35,14 +35,14 @@ export const windowBasicOperation = (
   type: WindowBasicOperationType
 ) => {
   switch (type) {
-    // // 重启
-    // case 'restart':
-    //   relaunch()
-    //   break
-    // // 退出
-    // case 'exit':
-    //   exit()
-    //   break
+    // 重启
+    case 'restart':
+      relaunch()
+      break
+    // 退出
+    case 'exit':
+      exit()
+      break
     // 置顶
     case 'top':
       new Window(label).setAlwaysOnTop(true)
@@ -101,7 +101,7 @@ export const transferData = {
 }
 
 // 创建新窗口
-export const createNewWin = (
+export const createNewWindow = (
   label: string,
   options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> &
     WindowOptions & {

@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@onoxm/utils':
-        specifier: ^0.3.1
-        version: 0.3.1
       '@onoxm/zustand-tools':
         specifier: ^0.3.1
         version: 0.3.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(zustand@5.0.14(@types/react@19.2.17)(react@19.2.8))
@@ -29,6 +26,15 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.4
+      '@tauri-apps/plugin-process':
+        specifier: ^2.3.1
+        version: 2.3.1
+      '@tauri-apps/plugin-updater':
+        specifier: ~2.10.1
+        version: 2.10.1
+      ono-react-element:
+        specifier: ^0.4.0
+        version: 0.4.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -52,7 +58,7 @@ importers:
         specifier: ^0.8.2
         version: 0.8.2(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@tauri-apps/cli':
-        specifier: ^2
+        specifier: ^2.11.4
         version: 2.11.4
       '@types/react':
         specifier: ^19.1.8
@@ -496,8 +502,36 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
+  '@onoxm/event@0.4.0':
+    resolution: {integrity: sha512-YExrh1+LKh6dQDFyCLWF4PBCzX62F6caEHfM5gd/BS+9YOrokERXvlBkWushL7jXAUdOzqlcMsDFRxUuFH1W2A==}
+
+  '@onoxm/react-hooks@0.4.0':
+    resolution: {integrity: sha512-MsElVkodkdZHzMVBTksWTXsSfYcWbKjOF4Tc8qJDjQz9MNNxL1WjB3PnpExPatI372Xh28Uj022yjCKAZNsfVQ==}
+    peerDependencies:
+      '@types/react': '>=19'
+      react: '>=19'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@onoxm/react-tools@0.4.0':
+    resolution: {integrity: sha512-kSh1LVf0EJKCB2koxD9kczNRj90wtjCSHDVm1etzkMthOrUH1qnMhAnyhyij3KDxAqyp6b1TN9Wkg98F4FlOgA==}
+    peerDependencies:
+      '@types/react': '>=19'
+      '@types/react-dom': '>=19'
+      react: '>=19'
+      react-dom: '>=19'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
   '@onoxm/utils@0.3.1':
     resolution: {integrity: sha512-K1Cu4A6MBgl1uWd6NEDKA9sJKtjH7/vdWeWOY/kjdqr8SWCupE1wahgeHkFfP/WZvh3eYO+HeOdIf+92/JUazg==}
+
+  '@onoxm/utils@0.4.0':
+    resolution: {integrity: sha512-VAqHpW5yJ84pP7NS7H3u7qgaWET3rw9bCHC5UgSlvvDvS3tpHXbnqoGr10xizXyoPpCkPoV3EJjP8miGdwZ4PA==}
 
   '@onoxm/vite-plugin-auto-router@0.8.2':
     resolution: {integrity: sha512-NPYaFZoICpYy3UxgspCc44sWDZ6XTojE8OkWOx9ROKyJCILVqitlFBEhtZAPLu9FLYt6fnxlDPqrACCf5huJqQ==}
@@ -779,6 +813,9 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
+  '@popperjs/core@2.11.8':
+    resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
+
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
 
@@ -1025,6 +1062,12 @@ packages:
 
   '@tauri-apps/plugin-opener@2.5.4':
     resolution: {integrity: sha512-1HnPkb+AmgO29HBazm4uPLKB+r7zzcTBW1d0fyYp1uP+jwtpoiNDGKMMzz58SFp49nOIrxdE3aUJtT57lfO9CQ==}
+
+  '@tauri-apps/plugin-process@2.3.1':
+    resolution: {integrity: sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==}
+
+  '@tauri-apps/plugin-updater@2.10.1':
+    resolution: {integrity: sha512-NFYMg+tWOZPJdzE/PpFj2qfqwAWwNS3kXrb1tm1gnBJ9mYzZ4WDRrwy8udzWoAnfGCHLuePNLY1WVCNHnh3eRA==}
 
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
@@ -1713,6 +1756,19 @@ packages:
   onetime@5.1.0:
     resolution: {integrity: sha512-5NcSkPHhwTVFIQN+TUqXoS5+dlElHXdpAWu9I0HP20YOtIi+aZ0Ct82jdlILDxjLEAWwvm+qj1m6aEtsDVmm6Q==}
     engines: {node: '>=6'}
+
+  ono-react-element@0.4.0:
+    resolution: {integrity: sha512-Ovo+jl2F8UaafUq3PjHJsQb5Bj+0xm0jAriGElBFfjcyahB2/1err9vdc4Q3e/Ss5xICLWn37MysFAularJ/Bw==}
+    peerDependencies:
+      '@types/react': '>=19'
+      '@types/react-dom': '>=19'
+      react: '>=19'
+      react-dom: '>=19'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
 
   ora@5.4.1:
     resolution: {integrity: sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ==}
@@ -2537,7 +2593,29 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
+  '@onoxm/event@0.4.0':
+    dependencies:
+      '@onoxm/utils': 0.4.0
+
+  '@onoxm/react-hooks@0.4.0(@types/react@19.2.17)(react@19.2.8)':
+    dependencies:
+      '@onoxm/utils': 0.4.0
+      react: 19.2.8
+    optionalDependencies:
+      '@types/react': 19.2.17
+
+  '@onoxm/react-tools@0.4.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@onoxm/utils': 0.4.0
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+    optionalDependencies:
+      '@types/react': 19.2.17
+      '@types/react-dom': 19.2.3(@types/react@19.2.17)
+
   '@onoxm/utils@0.3.1': {}
+
+  '@onoxm/utils@0.4.0': {}
 
   '@onoxm/vite-plugin-auto-router@0.8.2(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     optionalDependencies:
@@ -2675,6 +2753,8 @@ snapshots:
     optional: true
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@popperjs/core@2.11.8': {}
 
   '@quansync/fs@1.0.0':
     dependencies:
@@ -2828,6 +2908,14 @@ snapshots:
       '@tauri-apps/api': 2.11.1
 
   '@tauri-apps/plugin-opener@2.5.4':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-process@2.3.1':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-updater@2.10.1':
     dependencies:
       '@tauri-apps/api': 2.11.1
 
@@ -3588,6 +3676,19 @@ snapshots:
   onetime@5.1.0:
     dependencies:
       mimic-fn: 2.1.0
+
+  ono-react-element@0.4.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      '@onoxm/event': 0.4.0
+      '@onoxm/react-hooks': 0.4.0(@types/react@19.2.17)(react@19.2.8)
+      '@onoxm/react-tools': 0.4.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@onoxm/utils': 0.4.0
+      '@popperjs/core': 2.11.8
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+    optionalDependencies:
+      '@types/react': 19.2.17
+      '@types/react-dom': 19.2.3(@types/react@19.2.17)
 
   ora@5.4.1:
     dependencies:

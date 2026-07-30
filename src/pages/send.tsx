@@ -1,3 +1,4 @@
+import { Layout } from '@/components'
 import { useNotification } from '@/hooks'
 import useStore from '@/store'
 import { invoke } from '@tauri-apps/api/core'
@@ -56,37 +57,39 @@ export default () => {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <Link className="bg-blue-500 text-white px-4 py-2 rounded-md" to="/">
-        返回首页
-      </Link>
+    <Layout>
+      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+        <Link className="bg-blue-500 text-white px-4 py-2 rounded-md" to="/">
+          返回首页
+        </Link>
 
-      <div style={{ marginBottom: '20px' }}>
-        <h3>📤 发送端（客户端）</h3>
-        <button
-          className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
-          onClick={sendFile}
+        <div style={{ marginBottom: '20px' }}>
+          <h3>📤 发送端（客户端）</h3>
+          <button
+            className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
+            onClick={sendFile}
+          >
+            📤 选择并发送文件
+          </button>
+        </div>
+
+        <div
+          style={{
+            border: '1px solid #ccc',
+            padding: '10px',
+            borderRadius: '4px'
+          }}
         >
-          📤 选择并发送文件
-        </button>
+          <h4>状态</h4>
+          <p>{status}</p>
+          {progress > 0 && (
+            <div>
+              <progress value={progress} max="100" style={{ width: '100%' }} />
+              <span>{progress.toFixed(1)}%</span>
+            </div>
+          )}
+        </div>
       </div>
-
-      <div
-        style={{
-          border: '1px solid #ccc',
-          padding: '10px',
-          borderRadius: '4px'
-        }}
-      >
-        <h4>状态</h4>
-        <p>{status}</p>
-        {progress > 0 && (
-          <div>
-            <progress value={progress} max="100" style={{ width: '100%' }} />
-            <span>{progress.toFixed(1)}%</span>
-          </div>
-        )}
-      </div>
-    </div>
+    </Layout>
   )
 }

@@ -1,6 +1,6 @@
 {
   "name": "easy2send",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,13 +14,15 @@
     "cz": "git-cz"
   },
   "dependencies": {
-    "@onoxm/utils": "^0.3.1",
     "@onoxm/zustand-tools": "^0.3.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-fs": "^2.5.1",
     "@tauri-apps/plugin-notification": "~2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "~2.10.1",
+    "ono-react-element": "^0.4.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^8.3.0",
@@ -30,7 +32,7 @@
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@onoxm/vite-plugin-auto-router": "^0.8.2",
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@unocss/preset-wind3": "^66.7.2",

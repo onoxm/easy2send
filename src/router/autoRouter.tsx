@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router'
 import Pages from './../pages/index.tsx'
 import PagesReceive from './../pages/receive.tsx'
 import PagesSend from './../pages/send.tsx'
+import PagesSettings from './../pages/settings.tsx'
 import PagesRoot from './../pages/__root__.tsx'
 
 type PageConfig = Partial<
@@ -15,31 +16,41 @@ export const defineConfig = (config: PageConfig) => config
 
 export const routes: RouteObject[] = [
   {
-    path: '/',
+    path: "/",
     element: <PagesRoot />,
     children: [
       {
-        path: '/',
+        path: "/",
         element: <Pages />,
         index: true
       },
       {
-        path: '/send',
+        path: "/send",
         children: [
           {
-            path: '',
+            path: "",
             index: true,
             element: <PagesSend />
           }
         ]
       },
       {
-        path: '/receive',
+        path: "/receive",
         children: [
           {
-            path: '',
+            path: "",
             index: true,
             element: <PagesReceive />
+          }
+        ]
+      },
+      {
+        path: "/settings",
+        children: [
+          {
+            path: "",
+            index: true,
+            element: <PagesSettings />
           }
         ]
       }

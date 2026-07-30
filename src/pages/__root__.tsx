@@ -1,10 +1,15 @@
 import { useInitConfig, useTauriDrag } from '@/hooks'
+import { useCheckUpdate } from '@/hooks/useCheckUpdate'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
 import { Outlet } from 'react-router'
 
 export default () => {
-  const { theme, savePath } = useStore(['theme', 'savePath'])
+  const { theme, savePath, autoCheckUpdate } = useStore([
+    'theme',
+    'savePath',
+    'autoCheckUpdate'
+  ])
 
   useTauriDrag(e => {
     if (e.payload.type === 'drop') {
@@ -17,16 +22,16 @@ export default () => {
   useConfig(
     {
       theme,
-      savePath
+      savePath,
+      autoCheckUpdate
     },
     useStore.setState
   )
 
+  useCheckUpdate()
+
   return (
     <main className="w-screen h-screen">
-      <h2 className="text-2xl font-bold text-center">
-        📁 Easy2Send：局域网文件传输
-      </h2>
       <Outlet />
     </main>
   )

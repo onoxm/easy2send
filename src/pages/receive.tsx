@@ -1,8 +1,8 @@
+import { Layout } from '@/components'
 import { useIP, useNotification, usePort } from '@/hooks'
 import useStore from '@/store'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { open } from '@tauri-apps/plugin-dialog'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -82,56 +82,35 @@ export default () => {
     }
   }, [ip, port, savePath])
 
-  // 选择保存目录
-  const selectSaveDir = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: '选择文件保存目录'
-    })
-
-    if (selected && typeof selected === 'string') {
-      useStore.setState({ savePath: selected })
-    }
-  }
-
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <Link className="bg-blue-500 text-white px-4 py-2 rounded-md" to="/">
-        返回首页
-      </Link>
-      <div style={{ marginBottom: '20px' }}>
-        <h3>
-          📥 接收端（服务器）ip：{ip} port：{port}{' '}
-        </h3>
-        <div>
-          <button
-            className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
-            onClick={selectSaveDir}
-            style={{ marginRight: '10px' }}
-          >
-            📂 选择保存目录
-          </button>
-          <span>{savePath || '未选择'}</span>
+    <Layout>
+      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+        <Link className="bg-blue-500 text-white px-4 py-2 rounded-md" to="/">
+          返回首页
+        </Link>
+        <div style={{ marginBottom: '20px' }}>
+          <h3>
+            📥 接收端（服务器）ip：{ip} port：{port}{' '}
+          </h3>
+        </div>
+
+        <div
+          style={{
+            border: '1px solid #ccc',
+            padding: '10px',
+            borderRadius: '4px'
+          }}
+        >
+          <h4>状态</h4>
+          <p>{status}</p>
+          {progress > 0 && (
+            <div>
+              <progress value={progress} max="100" style={{ width: '100%' }} />
+              <span>{progress.toFixed(1)}%</span>
+            </div>
+          )}
         </div>
       </div>
-
-      <div
-        style={{
-          border: '1px solid #ccc',
-          padding: '10px',
-          borderRadius: '4px'
-        }}
-      >
-        <h4>状态</h4>
-        <p>{status}</p>
-        {progress > 0 && (
-          <div>
-            <progress value={progress} max="100" style={{ width: '100%' }} />
-            <span>{progress.toFixed(1)}%</span>
-          </div>
-        )}
-      </div>
-    </div>
+    </Layout>
   )
 }

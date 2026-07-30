@@ -2,7 +2,7 @@ import { StateType } from '@/store'
 import operationConfig from '@/uitls/operationConfig'
 import { useEffect } from 'react'
 
-type ConfigType = Pick<StateType, 'theme' | 'savePath'>
+type ConfigType = Pick<StateType, 'theme' | 'savePath' | 'autoCheckUpdate'>
 
 export const useConfig = (
   config: ConfigType,

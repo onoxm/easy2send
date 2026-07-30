@@ -4,7 +4,10 @@ use std::net::{SocketAddr, TcpListener};
 #[tauri::command]
 pub fn get_free_port(ip: String, start: u16, end: u16) -> Result<u16, String> {
     let available = get_available_ports(ip, start, end)?;
-    available.first().copied().ok_or_else(|| "范围内没有可用端口".to_string())
+    available
+        .first()
+        .copied()
+        .ok_or_else(|| "范围内没有可用端口".to_string())
 }
 
 pub fn get_available_ports(ip: String, start: u16, end: u16) -> Result<Vec<u16>, String> {

@@ -167,14 +167,17 @@ jobs:
           cat /tmp/latest.json
 
           # 获取源仓库 Release 的 assets（id → name 映射）
+          # 用 gh release view 而非 gh api，因为 gh release 能正确访问草稿 Release
           echo "=== Step 2: Fetch asset map ==="
-          ASSET_MAP=$(GH_TOKEN="$SOURCE_TOKEN" gh api "repos/$SOURCE_REPO/releases/tags/$TAG_NAME" \
-            --jq '.assets | map({(.id|tostring): .name}) | add' 2>/dev/null || echo '{}')
-          echo "Asset map: $ASSET_MAP"
+          ASSET_MAP=$(GH_TOKEN="$SOURCE_TOKEN" gh release view "$TAG_NAME" \
+            --repo "$SOURCE_REPO" --json assets --jq '.assets | map({(.id|tostring): .name}) | add' 2>/dev/null || true)
 
-          if [ "$ASSET_MAP" = "null" ] || [ -z "$ASSET_MAP" ]; then
+          # 验证 ASSET_MAP 是有效的 JSON 对象（gh 可能输出错误 JSON 或 null）
+          if ! echo "$ASSET_MAP" | jq -e 'type == "object"' >/dev/null 2>&1; then
+            echo "⚠ Asset map is not a valid JSON object, using empty map"
             ASSET_MAP='{}'
           fi
+          echo "Asset map: $ASSET_MAP"
 
           # 重写 URL
           echo "=== Step 3: Rewrite URLs ==="

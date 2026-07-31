@@ -1,17 +1,18 @@
+import { windowBasicOperation } from '@/api/tauri'
+import useStore from '@/store'
+import { Update } from '@tauri-apps/plugin-updater'
 import { Button, portalRenderer, TemplateDialog } from 'ono-react-element'
 import { useState } from 'react'
 
 interface UpdateDialogProps {
-  handleUpdate: () => void
+  handleUpdate: (callback: (update: Update) => void) => void
+  destroy: () => void
 }
 
-const UpdateDialog = ({
-  destroy,
-  handleUpdate
-}: UpdateDialogProps & {
-  destroy: () => void
-}) => {
+const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
+  const version = useStore('version')
   const [loading, setLoading] = useState(false)
+  const [newVersion, setNewVersion] = useState('')
 
   return (
     <TemplateDialog
@@ -31,6 +32,8 @@ const UpdateDialog = ({
       }}
     >
       <h1>检测到新版本，是否更新？</h1>
+      <h2>当前版本：{version}</h2>
+      <h2>新版本：{newVersion}</h2>
       <div
         style={{
           position: 'absolute',
@@ -48,7 +51,15 @@ const UpdateDialog = ({
           type="success"
           loading={loading}
           onClick={() => {
-            handleUpdate()
+            handleUpdate(async update => {
+              // ✅ 有更新对象即表示有新版本
+              setNewVersion(update.version)
+              window.alert(JSON.stringify(update))
+              // 这里可以添加UI提示，如进度条
+              await update.downloadAndInstall()
+              console.log('更新安装完成，应用即将重启。')
+              windowBasicOperation('main', 'restart')
+            })
             setLoading(true)
           }}
         >
@@ -59,6 +70,8 @@ const UpdateDialog = ({
   )
 }
 
-export const updateDialog = (options: UpdateDialogProps) => {
-  return portalRenderer(UpdateDialog, options, 'update-dialog-root')
+export const updateDialog = (
+  handleUpdate: (callback: (update: Update) => void) => void
+) => {
+  return portalRenderer(UpdateDialog, { handleUpdate }, 'update-dialog-root')
 }

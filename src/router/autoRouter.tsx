@@ -16,39 +16,39 @@ export const defineConfig = (config: PageConfig) => config
 
 export const routes: RouteObject[] = [
   {
-    path: "/",
+    path: '/',
     element: <PagesRoot />,
     children: [
       {
-        path: "/",
+        path: '/',
         element: <Pages />,
         index: true
       },
       {
-        path: "/send",
+        path: '/send',
         children: [
           {
-            path: "",
+            path: '',
             index: true,
             element: <PagesSend />
           }
         ]
       },
       {
-        path: "/receive",
+        path: '/receive',
         children: [
           {
-            path: "",
+            path: '',
             index: true,
             element: <PagesReceive />
           }
         ]
       },
       {
-        path: "/settings",
+        path: '/settings',
         children: [
           {
-            path: "",
+            path: '',
             index: true,
             element: <PagesSettings />
           }

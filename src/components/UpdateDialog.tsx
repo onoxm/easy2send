@@ -8,12 +8,21 @@ interface UpdateDialogProps {
   destroy: () => void
 }
 
+// 将字节数格式化为人类可读形式
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
   const [loading, setLoading] = useState(false)
   const [version, setVersion] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [percent, setPercent] = useState(0)
   const [message, setMessage] = useState('')
+  // 服务器未返回 Content-Length 时使用不确定进度模式
+  const [indeterminate, setIndeterminate] = useState(false)
 
   // 用 ref 累计已下载字节数与总字节数，避免闭包取到旧值
   const downloadedRef = useRef(0)
@@ -27,12 +36,15 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
       downloadedRef.current = 0
       totalRef.current = 0
       setPercent(0)
+      setIndeterminate(false)
       setMessage('开始下载...')
 
       await update.downloadAndInstall(progress => {
         switch (progress.event) {
           case 'Started':
             totalRef.current = progress.data.contentLength ?? 0
+            // contentLength 为 null/0 时说明服务器未返回总大小，切换不确定模式
+            setIndeterminate(totalRef.current <= 0)
             setMessage('开始下载...')
             setPercent(0)
             break
@@ -46,13 +58,15 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
               setPercent(p)
               setMessage(`下载中... ${p}%`)
             } else {
-              // 未知总大小时仅展示已下载量
-              setMessage(`下载中... ${downloadedRef.current} bytes`)
+              setMessage(
+                `下载中... 已下载 ${formatBytes(downloadedRef.current)}`
+              )
             }
             break
           }
           case 'Finished':
             setPercent(100)
+            setIndeterminate(false)
             setMessage('下载完成，正在安装...')
             break
           default:
@@ -60,7 +74,7 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
         }
       })
 
-      console.log('更新安装完成，应用即将重启。')
+      setMessage('更新安装完成，应用即将重启。')
       windowBasicOperation('main', 'restart')
     })
   }
@@ -107,18 +121,33 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
               height: 10,
               background: '#e5e7eb',
               borderRadius: 5,
-              overflow: 'hidden'
+              overflow: 'hidden',
+              position: 'relative'
             }}
           >
-            <div
-              style={{
-                width: `${percent}%`,
-                height: '100%',
-                background: '#22c55e',
-                borderRadius: 5,
-                transition: 'width 0.2s ease'
-              }}
-            />
+            {indeterminate ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  height: '100%',
+                  width: '40%',
+                  background: '#22c55e',
+                  borderRadius: 5,
+                  animation: 'update-indeterminate 1s ease-in-out infinite'
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: `${percent}%`,
+                  height: '100%',
+                  background: '#22c55e',
+                  borderRadius: 5,
+                  transition: 'width 0.2s ease'
+                }}
+              />
+            )}
           </div>
           <span style={{ fontSize: 12, color: '#666' }}>{message}</span>
         </div>
@@ -140,6 +169,12 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
           更新
         </Button>
       </div>
+      <style>{`
+        @keyframes update-indeterminate {
+          0% { left: -40%; }
+          100% { left: 100%; }
+        }
+      `}</style>
     </TemplateDialog>
   )
 }

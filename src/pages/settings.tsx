@@ -41,7 +41,14 @@ export default () => {
           id="autoUpdate"
           color={'#22c55e'}
           checked={autoCheckUpdate}
-          onChange={bl => useStore.setState({ autoCheckUpdate: bl })}
+          onChange={bl =>
+            useStore.setState(
+              Object.assign(
+                { autoCheckUpdate: bl },
+                bl ? { updateNow: true } : {}
+              )
+            )
+          }
         />
       </div>
     </div>

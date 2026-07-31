@@ -246,3 +246,8 @@ export const changeWindowSkipTaskbar = (
   label: string,
   isSkipTaskbar: boolean
 ) => new Window(label).setSkipTaskbar(isSkipTaskbar)
+
+// 本次启动期间是否已取消过更新（会话级，重启后重置）
+export const isUpdateDismissed = () => invoke<boolean>('is_update_dismissed')
+
+export const setUpdateDismissed = () => invoke('set_update_dismissed')

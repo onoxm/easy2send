@@ -1,7 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod common;
 use common::{
-    hostname_ip::get_lan_ip, port::get_free_port, tray::create_tray, version::get_version,
+    hostname_ip::get_lan_ip, port::get_free_port, tray::create_tray, update_state,
+    version::get_version,
 };
 mod fs;
 use fs::file_transfer;
@@ -26,7 +27,9 @@ pub fn run() {
             file_transfer::start_server,
             file_transfer::stop_server,
             file_transfer::send_file,
-            get_free_port
+            get_free_port,
+            update_state::is_update_dismissed,
+            update_state::set_update_dismissed
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

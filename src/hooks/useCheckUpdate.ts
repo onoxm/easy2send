@@ -1,3 +1,4 @@
+import { isUpdateDismissed } from '@/api/tauri'
 import { updateDialog } from '@/components'
 import useStore from '@/store'
 import { check } from '@tauri-apps/plugin-updater'
@@ -11,6 +12,11 @@ export const useCheckUpdate = () => {
       try {
         const update = await check()
         if (update) {
+          // 本次启动期间已取消过更新，则不再弹窗
+          if (await isUpdateDismissed()) {
+            update.close()
+            return
+          }
           updateDialog(callback => callback(update))
         } else {
           console.log('当前已是最新版本。')

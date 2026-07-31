@@ -1,15 +1,7 @@
-import { windowBasicOperation } from '@/api/tauri'
-import { listen } from '@tauri-apps/api/event'
+import { setUpdateDismissed, windowBasicOperation } from '@/api/tauri'
 import { Update } from '@tauri-apps/plugin-updater'
 import { Button, portalRenderer, TemplateDialog } from 'ono-react-element'
-import { useState } from 'react'
-
-// 定义进度事件的 payload 类型
-interface UpdaterProgressPayload {
-  downloaded: number
-  total: number
-  chunkLength: number
-}
+import { useRef, useState } from 'react'
 
 interface UpdateDialogProps {
   handleUpdate: (callback: (update: Update) => void) => void
@@ -20,49 +12,69 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
   const [loading, setLoading] = useState(false)
   const [version, setVersion] = useState('')
   const [downloading, setDownloading] = useState(false)
+  const [percent, setPercent] = useState(0)
   const [message, setMessage] = useState('')
 
-  const handleConfirm = async () => {
-    const unlisten = await listen<UpdaterProgressPayload>(
-      'updater://progress',
-      event => {
-        const { downloaded, total } = event.payload
-        if (total > 0) {
-          const percent = Math.round((downloaded / total) * 100)
-          setMessage(`下载中... ${percent}%`)
-        }
-      }
-    )
+  // 用 ref 累计已下载字节数与总字节数，避免闭包取到旧值
+  const downloadedRef = useRef(0)
+  const totalRef = useRef(0)
 
+  const handleConfirm = async () => {
+    setLoading(true)
     handleUpdate(async update => {
-      // ✅ 有更新对象即表示有新版本
       setVersion(update.version)
-      // 这里可以添加UI提示，如进度条
+      setDownloading(true)
+      downloadedRef.current = 0
+      totalRef.current = 0
+      setPercent(0)
+      setMessage('开始下载...')
+
       await update.downloadAndInstall(progress => {
-        setDownloading(true)
-        // progress 是一个包含 event 和 data 的对象
         switch (progress.event) {
           case 'Started':
+            totalRef.current = progress.data.contentLength ?? 0
             setMessage('开始下载...')
+            setPercent(0)
             break
+          case 'Progress': {
+            downloadedRef.current += progress.data.chunkLength
+            if (totalRef.current > 0) {
+              const p = Math.min(
+                100,
+                Math.round((downloadedRef.current / totalRef.current) * 100)
+              )
+              setPercent(p)
+              setMessage(`下载中... ${p}%`)
+            } else {
+              // 未知总大小时仅展示已下载量
+              setMessage(`下载中... ${downloadedRef.current} bytes`)
+            }
+            break
+          }
           case 'Finished':
-            setMessage('下载完成！')
-            unlisten()
+            setPercent(100)
+            setMessage('下载完成，正在安装...')
             break
           default:
             break
         }
       })
+
       console.log('更新安装完成，应用即将重启。')
       windowBasicOperation('main', 'restart')
     })
-    setLoading(true)
+  }
+
+  // 取消更新：标记本次启动期间已取消，避免其它窗口再次弹窗
+  const handleCancel = () => {
+    setUpdateDismissed()
+    destroy()
   }
 
   return (
     <TemplateDialog
       dialogClose={() => {
-        if (!loading) destroy()
+        if (!loading) handleCancel()
       }}
       style={{
         width: 400,
@@ -82,13 +94,33 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
         <div
           style={{
             width: 300,
-            height: 10,
-            background: '#333',
-            borderRadius: 5,
-            margin: '16px 0'
+            margin: '16px 0',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 6
           }}
         >
-          {message}
+          <div
+            style={{
+              width: '100%',
+              height: 10,
+              background: '#e5e7eb',
+              borderRadius: 5,
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              style={{
+                width: `${percent}%`,
+                height: '100%',
+                background: '#22c55e',
+                borderRadius: 5,
+                transition: 'width 0.2s ease'
+              }}
+            />
+          </div>
+          <span style={{ fontSize: 12, color: '#666' }}>{message}</span>
         </div>
       )}
       <div
@@ -101,7 +133,7 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
           gap: 8
         }}
       >
-        <Button type="primary" disabled={loading} onClick={destroy}>
+        <Button type="primary" disabled={loading} onClick={handleCancel}>
           取消
         </Button>
         <Button type="success" loading={loading} onClick={handleConfirm}>

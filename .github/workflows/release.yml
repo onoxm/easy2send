@@ -142,37 +142,56 @@ jobs:
       - name: Republish latest.json to public repository
         shell: bash
         run: |
+          set -x
+
           TAG_NAME="${{ github.ref_name }}"
           SOURCE_REPO="${{ github.repository }}"
           PUBLIC_REPO="onoxm/easy2send-updates"
           SOURCE_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           PUBLIC_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}"
 
-          # 从源仓库 Release 下载 tauri-action 生成的 latest.json（含全平台信息）
+          # 从源仓库 Release 下载 tauri-action 生成的 latest.json
+          echo "=== Step 1: Download latest.json from source repo ==="
           if ! GH_TOKEN="$SOURCE_TOKEN" gh release download "$TAG_NAME" \
             --repo "$SOURCE_REPO" --pattern "latest.json" --dir /tmp --clobber; then
             echo "⚠ latest.json not found in source release, skipping"
             exit 0
           fi
 
+          if [ ! -f /tmp/latest.json ]; then
+            echo "::error::Download exited 0 but /tmp/latest.json does not exist"
+            exit 1
+          fi
+
+          echo "=== Original latest.json ==="
+          cat /tmp/latest.json
+
           # 获取源仓库 Release 的 assets（id → name 映射）
-          # tauri-action 生成的 URL 是 API 格式: api.github.com/.../assets/<id>
-          # 需要替换为公开仓库的 download URL: github.com/<public>/releases/download/<tag>/<filename>
+          echo "=== Step 2: Fetch asset map ==="
           ASSET_MAP=$(GH_TOKEN="$SOURCE_TOKEN" gh api "repos/$SOURCE_REPO/releases/tags/$TAG_NAME" \
             --jq '.assets | map({(.id|tostring): .name}) | add' 2>/dev/null || echo '{}')
+          echo "Asset map: $ASSET_MAP"
 
-          # 重写 latest.json 中的 URL
-          jq --arg public_repo "$PUBLIC_REPO" --arg tag "$TAG_NAME" --argjson asset_map "$ASSET_MAP" '
+          if [ "$ASSET_MAP" = "null" ] || [ -z "$ASSET_MAP" ]; then
+            ASSET_MAP='{}'
+          fi
+
+          # 重写 URL
+          echo "=== Step 3: Rewrite URLs ==="
+          if ! jq --arg public_repo "$PUBLIC_REPO" --arg tag "$TAG_NAME" --argjson asset_map "$ASSET_MAP" '
             .platforms |= with_entries(
               .value.url |= sub(
                 "https://api\\.github\\.com/repos/[^/]+/[^/]+/releases/assets/(?<id>[0-9]+)";
                 "https://github.com/\($public_repo)/releases/download/\($tag)/" + ($asset_map[$id] // "unknown")
               )
             )
-          ' /tmp/latest.json > /tmp/latest_fixed.json
+          ' /tmp/latest.json > /tmp/latest_fixed.json; then
+            echo "::error::jq failed to process latest.json"
+            exit 1
+          fi
 
           if [ ! -s /tmp/latest_fixed.json ]; then
-            echo "::error::Failed to process latest.json"
+            echo "::error::latest_fixed.json is empty"
             exit 1
           fi
 
@@ -182,9 +201,11 @@ jobs:
           cat /tmp/latest.json
 
           # 确保公开仓库 Release 存在
+          echo "=== Step 4: Ensure public release exists ==="
           GH_TOKEN="$PUBLIC_TOKEN" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
             --title "$TAG_NAME" --notes "Automated update artifacts" 2>/dev/null || true
 
           # 上传到公开仓库
+          echo "=== Step 5: Upload to public repo ==="
           GH_TOKEN="$PUBLIC_TOKEN" gh release upload "$TAG_NAME" \
             /tmp/latest.json --repo "$PUBLIC_REPO" --clobber

@@ -135,6 +135,8 @@ jobs:
   publish-latest-json:
     needs: publish-tauri
     if: always()
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Republish latest.json to public repository
@@ -143,18 +145,27 @@ jobs:
           TAG_NAME="${{ github.ref_name }}"
           SOURCE_REPO="${{ github.repository }}"
           PUBLIC_REPO="onoxm/easy2send-updates"
+          SOURCE_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          PUBLIC_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}"
+
+          # 列出源仓库 Release 的 assets（调试用）
+          echo "=== Source release assets ==="
+          GH_TOKEN="$SOURCE_TOKEN" gh release view "$TAG_NAME" --repo "$SOURCE_REPO" 2>&1 || true
 
           # 从源仓库 Release 下载 tauri-action 生成的 latest.json（含全平台信息）
-          if ! GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release download "$TAG_NAME" \
-            --repo "$SOURCE_REPO" --pattern "latest.json" --dir /tmp --clobber 2>/dev/null; then
+          if ! GH_TOKEN="$SOURCE_TOKEN" gh release download "$TAG_NAME" \
+            --repo "$SOURCE_REPO" --pattern "latest.json" --dir /tmp --clobber; then
             echo "⚠ latest.json not found in source release, skipping"
             exit 0
           fi
 
+          echo "=== latest.json content ==="
+          cat /tmp/latest.json
+
           # 确保公开仓库 Release 存在
-          GH_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
+          GH_TOKEN="$PUBLIC_TOKEN" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
             --title "$TAG_NAME" --notes "Automated update artifacts" 2>/dev/null || true
 
           # 上传到公开仓库
-          GH_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}" gh release upload "$TAG_NAME" \
+          GH_TOKEN="$PUBLIC_TOKEN" gh release upload "$TAG_NAME" \
             /tmp/latest.json --repo "$PUBLIC_REPO" --clobber

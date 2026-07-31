@@ -166,27 +166,28 @@ jobs:
           echo "=== Original latest.json ==="
           cat /tmp/latest.json
 
-          # 获取源仓库 Release 的 assets（id → name 映射）
-          # 用 gh release view 而非 gh api，因为 gh release 能正确访问草稿 Release
-          echo "=== Step 2: Fetch asset map ==="
-          ASSET_MAP=$(GH_TOKEN="$SOURCE_TOKEN" gh release view "$TAG_NAME" \
-            --repo "$SOURCE_REPO" --json assets --jq '.assets | map({(.id|tostring): .name}) | add' 2>/dev/null || true)
-
-          # 验证 ASSET_MAP 是有效的 JSON 对象（gh 可能输出错误 JSON 或 null）
-          if ! echo "$ASSET_MAP" | jq -e 'type == "object"' >/dev/null 2>&1; then
-            echo "⚠ Asset map is not a valid JSON object, using empty map"
-            ASSET_MAP='{}'
-          fi
-          echo "Asset map: $ASSET_MAP"
-
-          # 重写 URL
-          echo "=== Step 3: Rewrite URLs ==="
-          if ! jq --arg public_repo "$PUBLIC_REPO" --arg tag "$TAG_NAME" --argjson asset_map "$ASSET_MAP" '
+          # 重写 URL：用版本号 + 平台→文件名规则直接构造公开仓库下载地址
+          # 不依赖 asset map（gh release view --json 返回 GraphQL node ID，与 URL 中的数字 ID 不匹配）
+          echo "=== Step 2: Rewrite URLs ==="
+          if ! jq --arg public_repo "$PUBLIC_REPO" --arg tag "$TAG_NAME" '
+            .version as $v |
+            {
+              "darwin-aarch64": "Easy2Send_\($v)_aarch64.dmg",
+              "darwin-aarch64-app": "Easy2Send_\($v)_aarch64.app.tar.gz",
+              "windows-x86_64": "Easy2Send_\($v)_x64_en-US.msi",
+              "windows-x86_64-msi": "Easy2Send_\($v)_x64_en-US.msi",
+              "windows-x86_64-nsis": "Easy2Send_\($v)_x64-setup.exe",
+              "linux-x86_64": "Easy2Send_\($v)_amd64.AppImage",
+              "linux-x86_64-appimage": "Easy2Send_\($v)_amd64.AppImage",
+              "linux-x86_64-deb": "Easy2Send_\($v)_amd64.deb",
+              "linux-x86_64-rpm": "Easy2Send-\($v)-1.x86_64.rpm"
+            } as $platform_files |
             .platforms |= with_entries(
-              .value.url |= sub(
-                "https://api\\.github\\.com/repos/[^/]+/[^/]+/releases/assets/(?<id>[0-9]+)";
-                "https://github.com/\($public_repo)/releases/download/\($tag)/" + ($asset_map[$id] // "unknown")
-              )
+              if $platform_files[.key] then
+                .value.url = "https://github.com/\($public_repo)/releases/download/\($tag)/\($platform_files[.key])"
+              else
+                .
+              end
             )
           ' /tmp/latest.json > /tmp/latest_fixed.json; then
             echo "::error::jq failed to process latest.json"
@@ -204,11 +205,11 @@ jobs:
           cat /tmp/latest.json
 
           # 确保公开仓库 Release 存在
-          echo "=== Step 4: Ensure public release exists ==="
+          echo "=== Step 3: Ensure public release exists ==="
           GH_TOKEN="$PUBLIC_TOKEN" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
             --title "$TAG_NAME" --notes "Automated update artifacts" 2>/dev/null || true
 
           # 上传到公开仓库
-          echo "=== Step 5: Upload to public repo ==="
+          echo "=== Step 4: Upload to public repo ==="
           GH_TOKEN="$PUBLIC_TOKEN" gh release upload "$TAG_NAME" \
             /tmp/latest.json --repo "$PUBLIC_REPO" --clobber

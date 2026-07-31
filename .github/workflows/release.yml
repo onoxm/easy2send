@@ -87,11 +87,10 @@ jobs:
 
           # 根据 --target 计算产物目录：有 target 时产物在 target/<triple>/release 下
           if [ -n "$TARGET" ]; then
-            RELEASE_DIR="src-tauri/target/$TARGET/release"
+            BUNDLE_DIR="src-tauri/target/$TARGET/release/bundle"
           else
-            RELEASE_DIR="src-tauri/target/release"
+            BUNDLE_DIR="src-tauri/target/release/bundle"
           fi
-          BUNDLE_DIR="$RELEASE_DIR/bundle"
 
           # 创建 Release（已存在时忽略，避免并行 job 竞态）
           gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
@@ -101,6 +100,7 @@ jobs:
           UPLOAD_FAILED=0
 
           # 仅在文件存在时上传；无匹配文件仅告警，真实错误才标记失败
+          # 注意：pattern 必须整体加引号，否则 nullglob 会在调用处展开并销毁模式
           upload_files() {
             local pattern="$1"
             local files=($pattern)
@@ -115,21 +115,46 @@ jobs:
           }
 
           # Windows 产物
-          upload_files "$BUNDLE_DIR/nsis/"*.exe*
-          upload_files "$BUNDLE_DIR/msi/"*.msi*
+          upload_files "$BUNDLE_DIR/nsis/*.exe*"
+          upload_files "$BUNDLE_DIR/msi/*.msi*"
 
           # macOS 产物
-          upload_files "$BUNDLE_DIR/dmg/"*.dmg*
-          upload_files "$BUNDLE_DIR/macos/"*.app.tar.gz*
+          upload_files "$BUNDLE_DIR/dmg/*.dmg*"
+          upload_files "$BUNDLE_DIR/macos/*.app.tar.gz*"
 
           # Linux 产物
-          upload_files "$BUNDLE_DIR/appimage/"*.AppImage*
-          upload_files "$BUNDLE_DIR/deb/"*.deb*
-          upload_files "$BUNDLE_DIR/rpm/"*.rpm*
-
-          # 更新清单
-          upload_files "$RELEASE_DIR/latest.json"
+          upload_files "$BUNDLE_DIR/appimage/*.AppImage*"
+          upload_files "$BUNDLE_DIR/deb/*.deb*"
+          upload_files "$BUNDLE_DIR/rpm/*.rpm*"
 
           if [ "$UPLOAD_FAILED" -eq 1 ]; then
             exit 1
           fi
+
+  # 所有平台构建完成后，从源仓库 Release 下载合并后的 latest.json 并同步到公开仓库
+  publish-latest-json:
+    needs: publish-tauri
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Republish latest.json to public repository
+        shell: bash
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          SOURCE_REPO="${{ github.repository }}"
+          PUBLIC_REPO="onoxm/easy2send-updates"
+
+          # 从源仓库 Release 下载 tauri-action 生成的 latest.json（含全平台信息）
+          if ! GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release download "$TAG_NAME" \
+            --repo "$SOURCE_REPO" --pattern "latest.json" --dir /tmp --clobber 2>/dev/null; then
+            echo "⚠ latest.json not found in source release, skipping"
+            exit 0
+          fi
+
+          # 确保公开仓库 Release 存在
+          GH_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
+            --title "$TAG_NAME" --notes "Automated update artifacts" 2>/dev/null || true
+
+          # 上传到公开仓库
+          GH_TOKEN="${{ secrets.PUBLIC_REPO_TOKEN }}" gh release upload "$TAG_NAME" \
+            /tmp/latest.json --repo "$PUBLIC_REPO" --clobber

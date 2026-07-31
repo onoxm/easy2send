@@ -31,7 +31,7 @@ export default () => {
   useCheckUpdate()
 
   return (
-    <main className="w-screen h-screen">
+    <main className="w-screen h-screen" onContextMenu={e => e.preventDefault()}>
       <Outlet />
     </main>
   )

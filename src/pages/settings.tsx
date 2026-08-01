@@ -1,12 +1,17 @@
+import { windowBasicOperation } from '@/api/tauri'
 import useStore from '@/store'
 import { open } from '@tauri-apps/plugin-dialog'
-import { Switch } from 'ono-react-element'
+import { check } from '@tauri-apps/plugin-updater'
+import { Button, Switch } from 'ono-react-element'
+import { useState } from 'react'
 
 export default () => {
-  const { savePath, autoCheckUpdate } = useStore([
+  const { savePath, autoCheckUpdate, canUpdate } = useStore([
     'savePath',
+    'canUpdate',
     'autoCheckUpdate'
   ])
+  const [downloading, setLoading] = useState(false)
 
   // 选择保存目录
   const selectSaveDir = async () => {
@@ -18,6 +23,16 @@ export default () => {
 
     if (selected && typeof selected === 'string') {
       useStore.setState({ savePath: selected })
+    }
+  }
+
+  const handleUpdate = async () => {
+    setLoading(true)
+    const update = await check()
+    if (update) {
+      await update.downloadAndInstall()
+      useStore.setState({ canUpdate: false })
+      windowBasicOperation('main', 'restart')
     }
   }
 
@@ -50,6 +65,11 @@ export default () => {
             )
           }
         />
+        {canUpdate && (
+          <Button loading={downloading} onClick={handleUpdate}>
+            更新软件
+          </Button>
+        )}
       </div>
     </div>
   )

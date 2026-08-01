@@ -14,6 +14,7 @@ const initialState = {
   port: 0,
   savePath: '',
   version: '0.0.0',
+  canUpdate: false,
   autoCheckUpdate: true
 }
 
@@ -30,6 +31,7 @@ const useStore = createStoreHook(
               'version',
               'theme',
               'savePath',
+              'canUpdate',
               'autoCheckUpdate'
             ]),
           storage: createJSONStorage(() => localStorage)

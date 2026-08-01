@@ -11,6 +11,7 @@ export const useCheckUpdate = () => {
     async function checkForUpdates() {
       try {
         const update = await check()
+        useStore.setState({ canUpdate: true })
         if (update) {
           // 本次启动期间已取消过更新，则不再弹窗
           if (await isUpdateDismissed()) {

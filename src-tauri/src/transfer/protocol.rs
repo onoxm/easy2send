@@ -1,8 +1,26 @@
 use anyhow::{anyhow, Result};
 use std::path::{Component, Path, PathBuf};
+use tokio::net::TcpStream;
 
-/// 单次读取/写入的缓冲区大小
-pub const CHUNK_SIZE: usize = 1024 * 1024;
+/// 单次读取/写入的缓冲区大小（4MB，千兆网下减少循环与 syscall 次数）
+pub const CHUNK_SIZE: usize = 4 * 1024 * 1024;
+
+/// socket 收发缓冲区大小（4MB，千兆网高 BDP 场景避免窗口受限）
+const SOCKET_BUF_SIZE: usize = 4 * 1024 * 1024;
+
+/// 调大 socket 收发缓冲区（SO_SNDBUF / SO_RCVBUF）
+///
+/// Windows 默认 64KB，千兆网 RTT 较大时 BDP 可能超过默认窗口导致吞吐受限。
+/// 设置失败不报错（某些系统对 buffer size 有上限），仅记录日志。
+pub fn tune_socket_buffers(stream: &TcpStream) {
+    let sock = socket2::SockRef::from(stream);
+    if let Err(e) = sock.set_recv_buffer_size(SOCKET_BUF_SIZE) {
+        eprintln!("[transfer] set_recv_buffer_size 失败: {}", e);
+    }
+    if let Err(e) = sock.set_send_buffer_size(SOCKET_BUF_SIZE) {
+        eprintln!("[transfer] set_send_buffer_size 失败: {}", e);
+    }
+}
 
 // ---------- 协议标识 ----------
 /// 单文件模式（兼容旧版接收端）

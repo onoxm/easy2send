@@ -15,8 +15,8 @@ use fs::{
 mod discovery;
 mod transfer;
 use discovery::{
-    check_firewall_rule, ensure_firewall_rule, get_device_id, list_devices, set_device_name,
-    start_discovery, stop_discovery, unregister_service, DiscoveryState, SharedDiscoveryState,
+    get_device_id, list_devices, set_device_name, start_discovery, stop_discovery,
+    unregister_service, DiscoveryState, SharedDiscoveryState,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -55,9 +55,6 @@ pub fn run() {
             list_devices,
             set_device_name,
             get_device_id,
-            // Windows 防火墙放行引导
-            check_firewall_rule,
-            ensure_firewall_rule,
             // 注销本机服务（不停 browse）
             unregister_service,
         ])

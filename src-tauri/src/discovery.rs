@@ -8,11 +8,9 @@
 //! - `state`：运行时状态、设备表、心跳检测、网卡过滤
 //! - `register`：注册 / 注销本机 mDNS 服务
 //! - `browse`：浏览局域网设备 + 事件推送
-//! - `firewall`：Windows 防火墙规则管理
 
 pub mod browse;
 pub mod device_id;
-pub mod firewall;
 pub mod register;
 pub mod state;
 
@@ -20,17 +18,6 @@ use crate::discovery::state::health_check;
 // re-export 供 lib.rs 构造默认状态
 pub use crate::discovery::state::{DiscoveryState, SharedDiscoveryState};
 
-/// 检测防火墙规则是否存在（命令包装，非 Windows 恒返回 true）
-#[tauri::command]
-pub async fn check_firewall_rule() -> Result<bool, String> {
-    firewall::check_rule().await
-}
-
-/// 提权添加防火墙规则（命令包装，Windows 下会弹 UAC 确认）
-#[tauri::command]
-pub async fn ensure_firewall_rule() -> Result<(), String> {
-    firewall::ensure_rule().await
-}
 use mdns_sd::ServiceDaemon;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

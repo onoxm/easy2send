@@ -27,12 +27,10 @@ pub fn spawn_browse_task(
     app: AppHandle,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
-        println!("[mdns] browse task started, waiting for events...");
         while let Ok(event) = receiver.recv_async().await {
             match event {
                 ServiceEvent::ServiceResolved(service) => {
                     let fullname = service.get_fullname().to_string();
-                    println!("[mdns] ServiceResolved: {}", fullname);
 
                     // 过滤本机广播的服务（fullname 比对 + device_id 比对双重保险）
                     let (self_fullname, self_device_id) = {
@@ -40,37 +38,28 @@ pub fn spawn_browse_task(
                         (s.registered_fullname.clone(), s.self_device_id.clone())
                     };
                     if Some(&fullname) == self_fullname.as_ref() {
-                        println!("[mdns] skip self (fullname match)");
                         continue;
                     }
 
                     match parse_resolved_service(&service, self_device_id.as_deref()) {
                         Some(info) => {
                             println!(
-                                "[mdns] parsed OK: {} @ {}:{} (platform={})",
-                                info.device_name, info.ip, info.port, info.platform
+                                "[mdns] 发现设备: {} @ {}:{}",
+                                info.device_name, info.ip, info.port
                             );
                             upsert_device(&state, &app, fullname, info).await;
                         }
                         None => {
-                            println!("[mdns] parse FAILED for: {} (见上方日志)", fullname);
+                            eprintln!("[mdns] 解析失败: {}", fullname);
                         }
                     }
                 }
                 ServiceEvent::ServiceRemoved(_ty, fullname) => {
-                    println!("[mdns] ServiceRemoved: {}", fullname);
                     remove_device_by_fullname(&state, &app, &fullname).await;
                 }
-                ServiceEvent::SearchStarted(ty) => {
-                    println!("[mdns] SearchStarted: {}", ty);
-                }
-                _ => {
-                    println!("[mdns] other event");
-                }
+                _ => {}
             }
         }
-        // receiver 关闭（daemon shutdown）→ 浏览结束
-        println!("[mdns] browse task ended (receiver closed)");
         let _ = app.emit("discovery-status", "stopped");
     })
 }
@@ -85,7 +74,7 @@ fn parse_resolved_service(
     let device_id = match service.get_property_val_str("deviceId") {
         Some(v) => v.to_string(),
         None => {
-            println!("[mdns] parse fail: TXT 缺少 deviceId");
+            eprintln!("[mdns] TXT 缺少 deviceId");
             return None;
         }
     };
@@ -93,7 +82,6 @@ fn parse_resolved_service(
     // 跳过本机
     if let Some(self_id) = self_device_id {
         if self_id == device_id {
-            println!("[mdns] parse fail: 是本机自身 (deviceId={})", device_id);
             return None;
         }
     }
@@ -101,35 +89,35 @@ fn parse_resolved_service(
     let device_name = match service.get_property_val_str("deviceName") {
         Some(v) => v.to_string(),
         None => {
-            println!("[mdns] parse fail: TXT 缺少 deviceName");
+            eprintln!("[mdns] TXT 缺少 deviceName");
             return None;
         }
     };
     let platform = match service.get_property_val_str("platform") {
         Some(v) => v.to_string(),
         None => {
-            println!("[mdns] parse fail: TXT 缺少 platform");
+            eprintln!("[mdns] TXT 缺少 platform");
             return None;
         }
     };
     let version = match service.get_property_val_str("version") {
         Some(v) => v.to_string(),
         None => {
-            println!("[mdns] parse fail: TXT 缺少 version");
+            eprintln!("[mdns] TXT 缺少 version");
             return None;
         }
     };
     let port_str = match service.get_property_val_str("port") {
         Some(v) => v,
         None => {
-            println!("[mdns] parse fail: TXT 缺少 port");
+            eprintln!("[mdns] TXT 缺少 port");
             return None;
         }
     };
     let port: u16 = match port_str.parse() {
         Ok(p) => p,
         Err(_) => {
-            println!("[mdns] parse fail: port 解析失败 ({})", port_str);
+            eprintln!("[mdns] port 解析失败 ({})", port_str);
             return None;
         }
     };
@@ -140,9 +128,8 @@ fn parse_resolved_service(
 
     // 从 IPv4 地址集合中优先选与本机同网段的，否则取任一 IPv4
     let addrs = service.get_addresses_v4();
-    println!("[mdns] {} 的 IPv4 地址数: {}", device_name, addrs.len());
     if addrs.is_empty() {
-        println!("[mdns] parse fail: 无 IPv4 地址");
+        eprintln!("[mdns] 无 IPv4 地址: {}", device_name);
         return None;
     }
     let ip: IpAddr = addrs

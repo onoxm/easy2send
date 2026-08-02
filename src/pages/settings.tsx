@@ -1,58 +1,58 @@
-import { setDeviceName } from "@/api/discovery";
-import { windowBasicOperation } from "@/api/tauri";
-import useStore from "@/store";
-import { EditTwo, FolderOpen } from "@icon-park/react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { check } from "@tauri-apps/plugin-updater";
-import { Button, Switch } from "ono-react-element";
-import { useState } from "react";
+import { setDeviceName } from '@/api/discovery'
+import { windowBasicOperation } from '@/api/tauri'
+import useStore from '@/store'
+import { EditTwo, FolderOpen } from '@icon-park/react'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { check } from '@tauri-apps/plugin-updater'
+import { Button, Switch } from 'ono-react-element'
+import { useState } from 'react'
 
 export default () => {
   const { savePath, autoCheckUpdate, canUpdate, deviceName } = useStore([
-    "savePath",
-    "canUpdate",
-    "autoCheckUpdate",
-    "deviceName",
-  ]);
-  const [downloading, setLoading] = useState(false);
+    'savePath',
+    'canUpdate',
+    'autoCheckUpdate',
+    'deviceName'
+  ])
+  const [downloading, setLoading] = useState(false)
 
   const savePathBtnList = [
     {
-      txt: "打开文件夹",
+      txt: '打开文件夹',
       icon: (
         <FolderOpen theme="outline" size={20} fill="#333" strokeWidth={3} />
       ),
       onClick: () => {
-        invoke("open_file", { path: savePath });
-      },
+        invoke('open_file', { path: savePath })
+      }
     },
     {
-      txt: "更改保存路径",
+      txt: '更改保存路径',
       icon: <EditTwo theme="outline" size={20} fill="#333" strokeWidth={3} />,
       onClick: async () => {
         const selected = await open({
           directory: true,
           multiple: false,
-          title: "选择文件保存目录",
-        });
+          title: '选择文件保存目录'
+        })
 
-        if (selected && typeof selected === "string") {
-          useStore.setState({ savePath: selected });
+        if (selected && typeof selected === 'string') {
+          useStore.setState({ savePath: selected })
         }
-      },
-    },
-  ];
+      }
+    }
+  ]
 
   const handleUpdate = async () => {
-    setLoading(true);
-    const update = await check();
+    setLoading(true)
+    const update = await check()
     if (update) {
-      await update.downloadAndInstall();
-      useStore.setState({ canUpdate: false });
-      windowBasicOperation({ type: "restart" });
+      await update.downloadAndInstall()
+      useStore.setState({ canUpdate: false })
+      windowBasicOperation({ type: 'restart' })
     }
-  };
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -82,7 +82,7 @@ export default () => {
           maxLength={32}
           placeholder="其他设备看到的名字"
           className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1"
-          onChange={(e) => useStore.setState({ deviceName: e.target.value })}
+          onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={() => setDeviceName(deviceName).catch(console.error)}
         />
       </div>
@@ -91,14 +91,14 @@ export default () => {
         <Switch
           style={{ width: 40, height: 24 }}
           id="autoUpdate"
-          color={"#22c55e"}
+          color={'#22c55e'}
           checked={autoCheckUpdate}
-          onChange={(bl) =>
+          onChange={bl =>
             useStore.setState(
               Object.assign(
                 { autoCheckUpdate: bl },
-                bl ? { updateNow: true } : {},
-              ),
+                bl ? { updateNow: true } : {}
+              )
             )
           }
         />
@@ -109,5 +109,5 @@ export default () => {
         )}
       </div>
     </div>
-  );
-};
+  )
+}

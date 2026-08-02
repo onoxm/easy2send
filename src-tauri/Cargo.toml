@@ -31,6 +31,7 @@ tokio = { version = "1.39", features = ["full"] }
 anyhow = "1" # 简洁的错误处理
 mdns-sd = "0.13" # mDNS 服务发现（纯 Rust，无外部依赖）
 uuid = { version = "1", features = ["v4"] } # 设备唯一标识生成
+socket2 = "0.5" # socket 缓冲区调优（SO_SNDBUF / SO_RCVBUF）
 
 [profile.dev]
 opt-level = 1 # Use slightly better optimizations.

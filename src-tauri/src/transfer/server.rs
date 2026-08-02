@@ -1,5 +1,6 @@
 use super::protocol::{
-    safe_join, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER, MODE_HANDSHAKE,
+    safe_join, tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER,
+    MODE_HANDSHAKE,
 };
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
@@ -25,6 +26,8 @@ pub(super) async fn run_server(
                 let (mut stream, peer) = accept_result?;
                 // 禁用 Nagle 算法，减少小包延迟
                 let _ = stream.set_nodelay(true);
+                // 调大 socket 缓冲区，避免高延迟链路吞吐受限
+                tune_socket_buffers(&stream);
                 let app_clone = app.clone();
                 let save_dir_clone = save_dir.clone();
                 tokio::spawn(async move {
@@ -134,18 +137,16 @@ async fn receive_single_file(
     let mut file = File::create(&file_path).await?;
 
     let mut received = 0u64;
-    // 循环外创建一次 buffer 复用，避免每 chunk 重新分配 1MB
+    // 循环外创建一次 buffer 复用，避免每 chunk 重新分配
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut last_emit = std::time::Instant::now();
 
+    // 流式协议：按 remaining.min(CHUNK_SIZE) 读取，无 chunk_len 前缀
     while received < total_size {
-        let mut chunk_len_buf = [0u8; 4];
-        stream.read_exact(&mut chunk_len_buf).await?;
-        let chunk_len = u32::from_be_bytes(chunk_len_buf) as usize;
-
-        stream.read_exact(&mut buffer[..chunk_len]).await?;
-        file.write_all(&buffer[..chunk_len]).await?;
-        received += chunk_len as u64;
+        let to_read = ((total_size - received).min(CHUNK_SIZE as u64)) as usize;
+        stream.read_exact(&mut buffer[..to_read]).await?;
+        file.write_all(&buffer[..to_read]).await?;
+        received += to_read as u64;
 
         // 限频 100ms，与文件夹模式一致
         if last_emit.elapsed() >= std::time::Duration::from_millis(100) || received >= total_size {
@@ -155,6 +156,8 @@ async fn receive_single_file(
         }
     }
 
+    // 显式 flush 确保数据落盘，不依赖 File drop 的异步关闭
+    file.flush().await?;
     app.emit("receive-complete", filename).unwrap();
     Ok(())
 }

@@ -45,10 +45,3 @@ export function getPlatform(): Platform {
   if (ua.includes('mac')) return 'macos'
   return 'linux'
 }
-
-/** 平台对应的展示图标（emoji 简化版） */
-export const platformIcon: Record<Platform, string> = {
-  windows: '🪟',
-  macos: '🍎',
-  linux: '🐧'
-}

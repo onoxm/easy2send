@@ -1,4 +1,6 @@
-use super::protocol::{CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER, MODE_HANDSHAKE};
+use super::protocol::{
+    tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER, MODE_HANDSHAKE,
+};
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -45,7 +47,10 @@ pub async fn send_handshake(
     write_string(&mut stream, version).await?;
 
     stream.flush().await?;
-    println!("[handshake] 已发送握手到 {} (本机 server port={})", addr, server_port);
+    println!(
+        "[handshake] 已发送握手到 {} (本机 server port={})",
+        addr, server_port
+    );
     Ok(())
 }
 
@@ -71,6 +76,8 @@ async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()>
     let stream = TcpStream::connect(addr).await?;
     // 禁用 Nagle 算法，配合 BufWriter 减少 syscall
     stream.set_nodelay(true)?;
+    // 调大 socket 缓冲区，避免高延迟链路吞吐受限
+    tune_socket_buffers(&stream);
     let mut stream = BufWriter::new(stream);
 
     // mode + 元数据
@@ -84,13 +91,13 @@ async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()>
     let mut sent = 0u64;
     let mut last_emit = Instant::now();
 
+    // 流式协议：文件总大小已知，直接写 chunk 内容，不带 chunk_len 前缀
+    // 接收端按 remaining.min(CHUNK_SIZE) 读取（与文件夹模式一致）
     loop {
         let n = file.read(&mut buffer).await?;
         if n == 0 {
             break;
         }
-        let chunk_len = n as u32;
-        stream.write_all(&chunk_len.to_be_bytes()).await?;
         stream.write_all(&buffer[..n]).await?;
         sent += n as u64;
 
@@ -125,6 +132,8 @@ async fn send_folder(addr: &str, root: &Path, app: AppHandle) -> Result<()> {
     let stream = TcpStream::connect(addr).await?;
     // 禁用 Nagle 算法，配合 BufWriter 减少 syscall
     stream.set_nodelay(true)?;
+    // 调大 socket 缓冲区，避免高延迟链路吞吐受限
+    tune_socket_buffers(&stream);
     let mut stream = BufWriter::new(stream);
     // mode + total_size + entry_count
     stream.write_all(&[MODE_FOLDER]).await?;

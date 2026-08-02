@@ -1,4 +1,3 @@
-export * from './useInitConfig'
 export * from './useIP'
 export * from './useNotification'
 export * from './useProt'

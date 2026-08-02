@@ -1,0 +1,171 @@
+use super::protocol::{safe_join, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER};
+use anyhow::{anyhow, Result};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Emitter};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::oneshot;
+
+/// 运行接收服务器，直到收到取消信号
+pub(super) async fn run_server(
+    addr: &str,
+    app: AppHandle,
+    mut cancel_rx: oneshot::Receiver<()>,
+    save_dir: PathBuf,
+) -> Result<()> {
+    let listener = TcpListener::bind(addr).await?;
+    app.emit("server-status", "listening").unwrap();
+
+    loop {
+        tokio::select! {
+            accept_result = listener.accept() => {
+                let (mut stream, peer) = accept_result?;
+                let app_clone = app.clone();
+                let save_dir_clone = save_dir.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_client(&mut stream, app_clone, save_dir_clone).await {
+                        eprintln!("处理客户端 {} 出错: {}", peer, e);
+                    }
+                });
+            }
+            _ = &mut cancel_rx => {
+                app.emit("server-status", "stopped").unwrap();
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+// 分派到单文件 / 文件夹接收逻辑
+async fn handle_client(stream: &mut TcpStream, app: AppHandle, save_dir: PathBuf) -> Result<()> {
+    let mut mode_buf = [0u8; 1];
+    stream.read_exact(&mut mode_buf).await?;
+    let mode = mode_buf[0];
+
+    match mode {
+        MODE_FILE => receive_single_file(stream, &app, &save_dir).await,
+        MODE_FOLDER => receive_folder(stream, &app, &save_dir).await,
+        _ => Err(anyhow!("未知的传输模式: {}", mode)),
+    }
+}
+
+// 接收单文件（mode=0）
+async fn receive_single_file(
+    stream: &mut TcpStream,
+    app: &AppHandle,
+    save_dir: &Path,
+) -> Result<()> {
+    let mut len_buf = [0u8; 4];
+    stream.read_exact(&mut len_buf).await?;
+    let name_len = u32::from_be_bytes(len_buf) as usize;
+
+    let mut name_buf = vec![0u8; name_len];
+    stream.read_exact(&mut name_buf).await?;
+    let filename = String::from_utf8(name_buf)?;
+
+    let mut size_buf = [0u8; 8];
+    stream.read_exact(&mut size_buf).await?;
+    let total_size = u64::from_be_bytes(size_buf);
+
+    let file_path = safe_join(save_dir, &filename)?;
+    if let Some(parent) = file_path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let mut file = File::create(&file_path).await?;
+
+    let mut received = 0u64;
+    while received < total_size {
+        let mut chunk_len_buf = [0u8; 4];
+        stream.read_exact(&mut chunk_len_buf).await?;
+        let chunk_len = u32::from_be_bytes(chunk_len_buf) as usize;
+
+        let mut chunk_data = vec![0u8; chunk_len];
+        stream.read_exact(&mut chunk_data).await?;
+        file.write_all(&chunk_data).await?;
+        received += chunk_len as u64;
+
+        let progress = (received as f64 / total_size as f64) * 100.0;
+        let _ = app.emit("receive-progress", (received, total_size, progress));
+    }
+
+    app.emit("receive-complete", filename).unwrap();
+    Ok(())
+}
+
+// 接收文件夹（mode=1）
+async fn receive_folder(stream: &mut TcpStream, app: &AppHandle, save_dir: &Path) -> Result<()> {
+    // 1. 总大小 + 条目数
+    let mut total_size_buf = [0u8; 8];
+    stream.read_exact(&mut total_size_buf).await?;
+    let total_size = u64::from_be_bytes(total_size_buf);
+
+    let mut count_buf = [0u8; 4];
+    stream.read_exact(&mut count_buf).await?;
+    let entry_count = u32::from_be_bytes(count_buf) as usize;
+
+    let mut received: u64 = 0;
+    let mut last_emit = std::time::Instant::now();
+
+    for _ in 0..entry_count {
+        // 2. 条目类型
+        let mut type_buf = [0u8; 1];
+        stream.read_exact(&mut type_buf).await?;
+        let entry_type = type_buf[0];
+
+        // 3. 相对路径
+        let mut len_buf = [0u8; 4];
+        stream.read_exact(&mut len_buf).await?;
+        let name_len = u32::from_be_bytes(len_buf) as usize;
+        let mut name_buf = vec![0u8; name_len];
+        stream.read_exact(&mut name_buf).await?;
+        let rel_path = String::from_utf8(name_buf)?;
+
+        let target = safe_join(save_dir, &rel_path)?;
+
+        if entry_type == ENTRY_DIR {
+            tokio::fs::create_dir_all(&target).await?;
+        } else if entry_type == ENTRY_FILE {
+            // 4. 文件大小
+            let mut size_buf = [0u8; 8];
+            stream.read_exact(&mut size_buf).await?;
+            let file_size = u64::from_be_bytes(size_buf);
+
+            if let Some(parent) = target.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            let mut file = File::create(&target).await?;
+
+            let mut remaining = file_size;
+            let mut buffer = vec![0u8; CHUNK_SIZE];
+            while remaining > 0 {
+                let to_read = remaining.min(CHUNK_SIZE as u64) as usize;
+                stream.read_exact(&mut buffer[..to_read]).await?;
+                file.write_all(&buffer[..to_read]).await?;
+                remaining -= to_read as u64;
+                received += to_read as u64;
+            }
+            file.flush().await?;
+
+            // 限频发送进度，避免事件风暴
+            if last_emit.elapsed() >= std::time::Duration::from_millis(100)
+                || received >= total_size
+            {
+                let progress = if total_size > 0 {
+                    (received as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                };
+                let _ = app.emit("receive-progress", (received, total_size, progress));
+                last_emit = std::time::Instant::now();
+            }
+        } else {
+            return Err(anyhow!("未知的条目类型: {}", entry_type));
+        }
+    }
+
+    let _ = app.emit("receive-progress", (total_size, total_size, 100.0));
+    app.emit("receive-complete", "文件夹传输完成").unwrap();
+    Ok(())
+}

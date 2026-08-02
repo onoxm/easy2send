@@ -1,4 +1,4 @@
-import { Layout } from '@/components'
+import { Layout, ProgressBar } from '@/components'
 import { useNotification } from '@/hooks'
 import useStore from '@/store'
 import { invoke } from '@tauri-apps/api/core'
@@ -13,14 +13,22 @@ export default () => {
 
   const [status, setStatus] = useState('就绪')
   const [progress, setProgress] = useState(0)
+  const [transferred, setTransferred] = useState(0)
+  const [total, setTotal] = useState(0)
 
   // 监听后端事件
   useEffect(() => {
     // 发送进度事件
     const unlistenSend = listen('send-progress', event => {
-      const [_, __, percent] = event.payload as [number, number, number]
+      const [received, totalSize, percent] = event.payload as [
+        number,
+        number,
+        number
+      ]
       setProgress(percent)
-      setStatus(`发送中... ${percent.toFixed(1)}%`)
+      setTransferred(received)
+      setTotal(totalSize)
+      setStatus('发送中...')
     })
 
     // 发送完成事件
@@ -56,6 +64,27 @@ export default () => {
     }
   }
 
+  // 选择并发送文件夹
+  const sendFolder = async () => {
+    const selected = await open({
+      multiple: false,
+      directory: true,
+      title: '选择要发送的文件夹'
+    })
+    if (!selected || typeof selected !== 'string') return
+
+    try {
+      setStatus('正在发送文件夹...')
+      setProgress(0)
+      await invoke('send_file', {
+        addr: `${ip}:${port}`,
+        filePath: selected
+      })
+    } catch (error) {
+      setStatus(`❌ 发送失败: ${error}`)
+    }
+  }
+
   return (
     <Layout>
       <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -65,30 +94,28 @@ export default () => {
 
         <div style={{ marginBottom: '20px' }}>
           <h3>📤 发送端（客户端）</h3>
-          <button
-            className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
-            onClick={sendFile}
-          >
-            📤 选择并发送文件
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
+              onClick={sendFile}
+            >
+              📄 选择并发送文件
+            </button>
+            <button
+              className="bg-blue-500 text-white p-1 rounded-sm cursor-pointer"
+              onClick={sendFolder}
+            >
+              📁 选择并发送文件夹
+            </button>
+          </div>
         </div>
 
-        <div
-          style={{
-            border: '1px solid #ccc',
-            padding: '10px',
-            borderRadius: '4px'
-          }}
-        >
-          <h4>状态</h4>
-          <p>{status}</p>
-          {progress > 0 && (
-            <div>
-              <progress value={progress} max="100" style={{ width: '100%' }} />
-              <span>{progress.toFixed(1)}%</span>
-            </div>
-          )}
-        </div>
+        <ProgressBar
+          status={status}
+          progress={progress}
+          transferred={transferred}
+          total={total}
+        />
       </div>
     </Layout>
   )

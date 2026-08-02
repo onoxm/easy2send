@@ -11,8 +11,8 @@ export const useCheckUpdate = () => {
     async function checkForUpdates() {
       try {
         const update = await check()
-        useStore.setState({ canUpdate: true })
         if (update) {
+          useStore.setState({ canUpdate: true })
           // 本次启动期间已取消过更新，则不再弹窗
           if (await isUpdateDismissed()) {
             update.close()
@@ -21,6 +21,7 @@ export const useCheckUpdate = () => {
           updateDialog(callback => callback(update))
         } else {
           console.log('当前已是最新版本。')
+          useStore.setState({ canUpdate: false })
         }
       } catch (error) {
         console.error('检查更新失败:', error)

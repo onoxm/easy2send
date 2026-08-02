@@ -21,39 +21,58 @@ import { exit, relaunch } from '@tauri-apps/plugin-process'
 export type fileSaveType = 'jpeg' | 'png' | 'webp' | 'json'
 
 type WindowBasicOperationType =
-  | 'minimize'
-  | 'toggleMaximize'
-  | 'close'
-  | 'top'
-  | 'noTop'
   | 'restart'
   | 'exit'
+  | 'top'
+  | 'noTop'
+  | 'close'
+  | 'minimize'
+  | 'maximize'
+  | 'hide'
+  | 'show'
+  | 'toggleMaximize'
 
 // 窗口操作
-export const windowBasicOperation = (
-  label: string,
+export const windowBasicOperation = async ({
+  label,
+  type
+}: {
+  label?: string
   type: WindowBasicOperationType
-) => {
+}) => {
   switch (type) {
-    // 重启
     case 'restart':
-      relaunch()
+      await relaunch()
       break
-    // 退出
     case 'exit':
-      exit()
+      await exit()
       break
-    // 置顶
     case 'top':
-      new Window(label).setAlwaysOnTop(true)
+    case 'noTop': {
+      if (!label) break
+      const win = await WebviewWindow.getByLabel(label)
+      if (win) {
+        await win.setAlwaysOnTop(type === 'top')
+      } else {
+        console.warn(`Window "${label}" not found`)
+      }
       break
-    // 取消置顶
-    case 'noTop':
-      new Window(label).setAlwaysOnTop(false)
-      break
-    default:
-      new Window(label)[type]()
-      break
+    }
+    default: {
+      if (!label) break
+      const win = await WebviewWindow.getByLabel(label)
+      if (win) {
+        // 类型断言：type 必须是对应 Window 的无参方法名
+        const method = win[type as keyof WebviewWindow] as () => Promise<void>
+        if (typeof method === 'function') {
+          await method()
+        } else {
+          console.warn(`Method "${type}" not found on window`)
+        }
+      } else {
+        console.warn(`Window "${label}" not found`)
+      }
+    }
   }
 }
 

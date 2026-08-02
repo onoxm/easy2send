@@ -1,0 +1,3 @@
+.little_btn {
+  @apply w-8 h-8 p-0.5 border border-solid border-[#e5e7eb] rounded-md flex justify-center items-center hover:bg-gray-200 hover:text-gray-800;
+}

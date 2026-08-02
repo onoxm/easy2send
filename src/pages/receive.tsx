@@ -1,4 +1,4 @@
-import { Layout } from '@/components'
+import { Layout, ProgressBar } from '@/components'
 import { useIP, useNotification, usePort } from '@/hooks'
 import useStore from '@/store'
 import { invoke } from '@tauri-apps/api/core'
@@ -14,6 +14,8 @@ export default () => {
 
   const [status, setStatus] = useState('就绪')
   const [progress, setProgress] = useState(0)
+  const [transferred, setTransferred] = useState(0)
+  const [total, setTotal] = useState(0)
 
   // 监听后端事件
   useEffect(() => {
@@ -26,9 +28,15 @@ export default () => {
 
     // 接收进度事件
     const unlistenReceive = listen('receive-progress', event => {
-      const [_, __, percent] = event.payload as [number, number, number]
+      const [received, totalSize, percent] = event.payload as [
+        number,
+        number,
+        number
+      ]
       setProgress(percent)
-      setStatus(`接收中... ${percent.toFixed(1)}%`)
+      setTransferred(received)
+      setTotal(totalSize)
+      setStatus('接收中...')
     })
 
     // 接收完成事件
@@ -94,22 +102,12 @@ export default () => {
           </h3>
         </div>
 
-        <div
-          style={{
-            border: '1px solid #ccc',
-            padding: '10px',
-            borderRadius: '4px'
-          }}
-        >
-          <h4>状态</h4>
-          <p>{status}</p>
-          {progress > 0 && (
-            <div>
-              <progress value={progress} max="100" style={{ width: '100%' }} />
-              <span>{progress.toFixed(1)}%</span>
-            </div>
-          )}
-        </div>
+        <ProgressBar
+          status={status}
+          progress={progress}
+          transferred={transferred}
+          total={total}
+        />
       </div>
     </Layout>
   )

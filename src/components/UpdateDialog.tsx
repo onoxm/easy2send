@@ -1,18 +1,17 @@
 import { setUpdateDismissed, windowBasicOperation } from '@/api/tauri'
+import useStore from '@/store'
 import { Update } from '@tauri-apps/plugin-updater'
-import { Button, portalRenderer, TemplateDialog } from 'ono-react-element'
+import {
+  Button,
+  formatFileSize,
+  portalRenderer,
+  TemplateDialog
+} from 'ono-react-element'
 import { useRef, useState } from 'react'
 
 interface UpdateDialogProps {
   handleUpdate: (callback: (update: Update) => void) => void
   destroy: () => void
-}
-
-// 将字节数格式化为人类可读形式
-const formatBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
@@ -59,7 +58,7 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
               setMessage(`下载中... ${p}%`)
             } else {
               setMessage(
-                `下载中... 已下载 ${formatBytes(downloadedRef.current)}`
+                `下载中... 已下载 ${formatFileSize(downloadedRef.current, { decimalPlaces: 1 })}`
               )
             }
             break
@@ -75,7 +74,8 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
       })
 
       setMessage('更新安装完成，应用即将重启。')
-      windowBasicOperation('main', 'restart')
+      useStore.setState({ canUpdate: false })
+      windowBasicOperation({ type: 'restart' })
     })
   }
 

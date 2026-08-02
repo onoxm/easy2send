@@ -1,6 +1,7 @@
 import { createNewWindow } from '@/api/tauri'
 import { Layout } from '@/components'
 import useStore from '@/store'
+import { SettingTwo } from '@icon-park/react'
 import { Button } from 'ono-react-element'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -11,7 +12,7 @@ export default () => {
 
   return (
     <Layout>
-      <div className="flex gap-2">
+      <div className="flex gap-2 w-full flex-1 justify-center items-center relative">
         {!isSend ? (
           <>
             <button
@@ -27,16 +28,21 @@ export default () => {
               接收端
             </Link>
             <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-md"
+              className="little_btn absolute top-2 right-2"
               onClick={() => {
-                createNewWindow('settings', {
-                  url: '/settings',
+                createNewWindow("settings", {
+                  url: "/settings",
                   width: 600,
-                  height: 400
-                })
+                  height: 400,
+                });
               }}
             >
-              设置
+              <SettingTwo
+                theme="outline"
+                size={20}
+                fill="#333"
+                strokeWidth={3}
+              />
             </button>
           </>
         ) : (
@@ -52,8 +58,8 @@ export default () => {
             <input
               className="border border-[#333]"
               type="text"
-              value={ip || ''}
-              onChange={e => useStore.setState({ ip: e.target.value })}
+              value={ip || ""}
+              onChange={(e) => useStore.setState({ ip: e.target.value })}
             />
 
             <h3>输入接收端口</h3>
@@ -61,8 +67,8 @@ export default () => {
             <input
               className="border border-[#333]"
               type="text"
-              value={port || ''}
-              onChange={e =>
+              value={port || ""}
+              onChange={(e) =>
                 useStore.setState({ port: Number(e.target.value) })
               }
             />
@@ -77,5 +83,5 @@ export default () => {
         )}
       </div>
     </Layout>
-  )
+  );
 }

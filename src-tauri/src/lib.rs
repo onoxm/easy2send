@@ -12,17 +12,24 @@ use fs::{
     open::open_file,
     write::{write_binary_file, write_text_file},
 };
+mod discovery;
 mod transfer;
+use discovery::{
+    check_firewall_rule, ensure_firewall_rule, get_device_id, list_devices, set_device_name,
+    start_discovery, stop_discovery, unregister_service, DiscoveryState, SharedDiscoveryState,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use transfer::{send_file, start_server, stop_server, ServerState};
+use transfer::{connect_device, send_file, start_server, stop_server, ServerState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let server_state = Arc::new(Mutex::new(ServerState::default()));
+    let discovery_state: SharedDiscoveryState = Arc::new(Mutex::new(DiscoveryState::default()));
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(server_state)
+        .manage(discovery_state)
         .setup(|app| create_tray(app))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
@@ -35,12 +42,24 @@ pub fn run() {
             start_server,
             stop_server,
             send_file,
+            connect_device,
             get_free_port,
             is_update_dismissed,
             set_update_dismissed,
             write_binary_file,
             write_text_file,
             open_file,
+            // 设备发现（mDNS）
+            start_discovery,
+            stop_discovery,
+            list_devices,
+            set_device_name,
+            get_device_id,
+            // Windows 防火墙放行引导
+            check_firewall_rule,
+            ensure_firewall_rule,
+            // 注销本机服务（不停 browse）
+            unregister_service,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -9,6 +9,8 @@ pub const CHUNK_SIZE: usize = 1024 * 1024;
 pub const MODE_FILE: u8 = 0;
 /// 文件夹模式
 pub const MODE_FOLDER: u8 = 1;
+/// 握手模式（对等连接：A 连接 B 时发送本机设备信息）
+pub const MODE_HANDSHAKE: u8 = 2;
 
 // ---------- 条目类型（文件夹模式内） ----------
 pub const ENTRY_FILE: u8 = 0;

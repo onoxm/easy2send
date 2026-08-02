@@ -1,9 +1,10 @@
-use super::protocol::{CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER};
+use super::protocol::{CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER, MODE_HANDSHAKE};
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
 
 /// 发送入口：自动判断文件或文件夹
@@ -20,6 +21,42 @@ pub(super) async fn run_client(addr: &str, file_path: &str, app: AppHandle) -> R
     }
 }
 
+/// 发送握手到指定地址（对等连接）
+///
+/// 连接对方 server → 发送 MODE_HANDSHAKE + 本机设备信息（含本机 server port）
+/// 对端收到后可知本机的回连地址（ip 从 TCP peer_addr 推断，port 从本字段取）
+pub async fn send_handshake(
+    addr: &str,
+    device_id: &str,
+    device_name: &str,
+    server_port: u16,
+    platform: &str,
+    version: &str,
+) -> Result<()> {
+    let stream = TcpStream::connect(addr).await?;
+    stream.set_nodelay(true)?;
+    let mut stream = BufWriter::new(stream);
+
+    stream.write_all(&[MODE_HANDSHAKE]).await?;
+    write_string(&mut stream, device_id).await?;
+    write_string(&mut stream, device_name).await?;
+    stream.write_all(&server_port.to_be_bytes()).await?;
+    write_string(&mut stream, platform).await?;
+    write_string(&mut stream, version).await?;
+
+    stream.flush().await?;
+    println!("[handshake] 已发送握手到 {} (本机 server port={})", addr, server_port);
+    Ok(())
+}
+
+/// 写入 4 字节长度 + N 字节字符串
+async fn write_string(stream: &mut BufWriter<TcpStream>, s: &str) -> Result<()> {
+    let len = s.len() as u32;
+    stream.write_all(&len.to_be_bytes()).await?;
+    stream.write_all(s.as_bytes()).await?;
+    Ok(())
+}
+
 // 发送单文件（mode=0）
 async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()> {
     let filename = path
@@ -31,7 +68,11 @@ async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()>
     let mut file = File::open(path).await?;
     let file_size = file.metadata().await?.len();
 
-    let mut stream = TcpStream::connect(addr).await?;
+    let stream = TcpStream::connect(addr).await?;
+    // 禁用 Nagle 算法，配合 BufWriter 减少 syscall
+    stream.set_nodelay(true)?;
+    let mut stream = BufWriter::new(stream);
+
     // mode + 元数据
     stream.write_all(&[MODE_FILE]).await?;
     let name_len = filename.len() as u32;
@@ -41,6 +82,7 @@ async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()>
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut sent = 0u64;
+    let mut last_emit = Instant::now();
 
     loop {
         let n = file.read(&mut buffer).await?;
@@ -52,9 +94,15 @@ async fn send_single_file(addr: &str, path: &Path, app: AppHandle) -> Result<()>
         stream.write_all(&buffer[..n]).await?;
         sent += n as u64;
 
-        let progress = (sent as f64 / file_size as f64) * 100.0;
-        app.emit("send-progress", (sent, file_size, progress))?;
+        // 限频 100ms，避免进度事件风暴（与文件夹模式一致）
+        if last_emit.elapsed() >= Duration::from_millis(100) || sent >= file_size {
+            let progress = (sent as f64 / file_size as f64) * 100.0;
+            app.emit("send-progress", (sent, file_size, progress))?;
+            last_emit = Instant::now();
+        }
     }
+    // BufWriter 必须 flush，确保缓冲数据写入 socket
+    stream.flush().await?;
 
     app.emit("send-complete", filename).unwrap();
     Ok(())
@@ -74,7 +122,10 @@ async fn send_folder(addr: &str, root: &Path, app: AppHandle) -> Result<()> {
         }
     }
 
-    let mut stream = TcpStream::connect(addr).await?;
+    let stream = TcpStream::connect(addr).await?;
+    // 禁用 Nagle 算法，配合 BufWriter 减少 syscall
+    stream.set_nodelay(true)?;
+    let mut stream = BufWriter::new(stream);
     // mode + total_size + entry_count
     stream.write_all(&[MODE_FOLDER]).await?;
     stream.write_all(&total_size.to_be_bytes()).await?;
@@ -135,6 +186,9 @@ async fn send_folder(addr: &str, root: &Path, app: AppHandle) -> Result<()> {
             }
         }
     }
+
+    // BufWriter 必须 flush，确保缓冲数据写入 socket
+    stream.flush().await?;
 
     let _ = app.emit("send-progress", (total_size, total_size, 100.0));
     app.emit("send-complete", format!("文件夹: {}", root_name))?;

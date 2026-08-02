@@ -1,4 +1,6 @@
-use super::protocol::{safe_join, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER};
+use super::protocol::{
+    safe_join, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_FILE, MODE_FOLDER, MODE_HANDSHAKE,
+};
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
@@ -21,6 +23,8 @@ pub(super) async fn run_server(
         tokio::select! {
             accept_result = listener.accept() => {
                 let (mut stream, peer) = accept_result?;
+                // 禁用 Nagle 算法，减少小包延迟
+                let _ = stream.set_nodelay(true);
                 let app_clone = app.clone();
                 let save_dir_clone = save_dir.clone();
                 tokio::spawn(async move {
@@ -47,8 +51,62 @@ async fn handle_client(stream: &mut TcpStream, app: AppHandle, save_dir: PathBuf
     match mode {
         MODE_FILE => receive_single_file(stream, &app, &save_dir).await,
         MODE_FOLDER => receive_folder(stream, &app, &save_dir).await,
+        MODE_HANDSHAKE => receive_handshake(stream, &app).await,
         _ => Err(anyhow!("未知的传输模式: {}", mode)),
     }
+}
+
+/// 接收握手消息（mode=2）
+///
+/// 解析对端设备信息（含对端 server port）→ emit "incoming-connection" 事件 → 前端跳转传输页
+/// 对端 IP 从 TCP peer_addr 推断，port 从握手 payload 中读取（对端的监听端口）
+async fn receive_handshake(stream: &mut TcpStream, app: &AppHandle) -> Result<()> {
+    let device_id = read_string(stream).await?;
+    let device_name = read_string(stream).await?;
+
+    // 读取对端 server 监听端口（2 字节 u16）
+    let mut port_buf = [0u8; 2];
+    stream.read_exact(&mut port_buf).await?;
+    let server_port = u16::from_be_bytes(port_buf);
+
+    let platform = read_string(stream).await?;
+    let version = read_string(stream).await?;
+
+    let peer = stream.peer_addr()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    // camelCase 与前端 DeviceInfo 类型对齐
+    let info = serde_json::json!({
+        "deviceId": device_id,
+        "deviceName": device_name,
+        "ip": peer.ip().to_string(),
+        "port": server_port,
+        "platform": platform,
+        "version": version,
+        "https": false,
+        "lastSeen": now,
+    });
+
+    println!(
+        "[handshake] 收到 {} 的握手 (ip={}, server_port={})",
+        device_name,
+        peer.ip(),
+        server_port
+    );
+    app.emit("incoming-connection", info)?;
+    Ok(())
+}
+
+/// 读取 4 字节长度 + N 字节 UTF-8 字符串
+async fn read_string(stream: &mut TcpStream) -> Result<String> {
+    let mut len_buf = [0u8; 4];
+    stream.read_exact(&mut len_buf).await?;
+    let len = u32::from_be_bytes(len_buf) as usize;
+    let mut buf = vec![0u8; len];
+    stream.read_exact(&mut buf).await?;
+    Ok(String::from_utf8(buf)?)
 }
 
 // 接收单文件（mode=0）
@@ -76,18 +134,25 @@ async fn receive_single_file(
     let mut file = File::create(&file_path).await?;
 
     let mut received = 0u64;
+    // 循环外创建一次 buffer 复用，避免每 chunk 重新分配 1MB
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut last_emit = std::time::Instant::now();
+
     while received < total_size {
         let mut chunk_len_buf = [0u8; 4];
         stream.read_exact(&mut chunk_len_buf).await?;
         let chunk_len = u32::from_be_bytes(chunk_len_buf) as usize;
 
-        let mut chunk_data = vec![0u8; chunk_len];
-        stream.read_exact(&mut chunk_data).await?;
-        file.write_all(&chunk_data).await?;
+        stream.read_exact(&mut buffer[..chunk_len]).await?;
+        file.write_all(&buffer[..chunk_len]).await?;
         received += chunk_len as u64;
 
-        let progress = (received as f64 / total_size as f64) * 100.0;
-        let _ = app.emit("receive-progress", (received, total_size, progress));
+        // 限频 100ms，与文件夹模式一致
+        if last_emit.elapsed() >= std::time::Duration::from_millis(100) || received >= total_size {
+            let progress = (received as f64 / total_size as f64) * 100.0;
+            let _ = app.emit("receive-progress", (received, total_size, progress));
+            last_emit = std::time::Instant::now();
+        }
     }
 
     app.emit("receive-complete", filename).unwrap();

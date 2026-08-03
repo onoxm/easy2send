@@ -181,6 +181,4 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
 
 export const updateDialog = (
   handleUpdate: (callback: (update: Update) => void) => void
-) => {
-  return portalRenderer(UpdateDialog, { handleUpdate }, 'update-dialog-root')
-}
+) => portalRenderer(UpdateDialog, { handleUpdate }, 'update-dialog-root')

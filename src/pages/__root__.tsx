@@ -1,5 +1,5 @@
 import { startDiscovery } from '@/api/discovery'
-import { useIP, usePort, useTauriDrag } from '@/hooks'
+import { useIP, usePort } from '@/hooks'
 import { useCheckUpdate } from '@/hooks/useCheckUpdate'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
@@ -11,12 +11,6 @@ import { useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 
 export default () => {
-  useTauriDrag(e => {
-    if (e.payload.type === 'drop') {
-      console.log(e.payload.paths)
-    }
-  })
-
   useConfig()
 
   useCheckUpdate()

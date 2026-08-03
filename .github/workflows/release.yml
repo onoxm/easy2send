@@ -120,7 +120,25 @@ jobs:
 
           # macOS 产物
           upload_files "$BUNDLE_DIR/dmg/*.dmg*"
-          upload_files "$BUNDLE_DIR/macos/*.app.tar.gz*"
+
+          # macOS .app.tar.gz（Tauri 默认产物名不含版本号和架构，需重命名后上传）
+          # 原名: Easy2Send.app.tar.gz → 重命名为: Easy2Send_0.2.2_aarch64.app.tar.gz
+          MACOS_DIR="$BUNDLE_DIR/macos"
+          if ls "$MACOS_DIR"/*.app.tar.gz 1>/dev/null 2>&1; then
+            VERSION="${TAG_NAME#v}"
+            ARCH=$([ -n "$TARGET" ] && echo "aarch64" || echo "x64")
+            mkdir -p /tmp/macos-upload
+            for f in "$MACOS_DIR"/*.app.tar.gz "$MACOS_DIR"/*.app.tar.gz.sig; do
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              product="${base%%.*}"
+              rest="${base#*.}"
+              new_name="${product}_${VERSION}_${ARCH}.${rest}"
+              cp "$f" "/tmp/macos-upload/$new_name"
+              echo "Renamed: $base → $new_name"
+            done
+            upload_files "/tmp/macos-upload/*.app.tar.gz*"
+          fi
 
           # Linux 产物
           upload_files "$BUNDLE_DIR/appimage/*.AppImage*"

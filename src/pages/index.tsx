@@ -1,5 +1,6 @@
 import { connectDevice } from '@/api/discovery'
 import { createNewWindow } from '@/api/tauri'
+import { ICON_INFO } from '@/common/common'
 import { Layout } from '@/components'
 import { useDevices } from '@/hooks'
 import useStore from '@/store'
@@ -9,9 +10,9 @@ import { useNavigate } from 'react-router'
 
 /** 平台对应的展示图标（emoji 简化版） */
 export const platformIcon = {
-  windows: <Windows theme="outline" size="24" fill="#333" strokeWidth={3} />,
-  macos: <Apple theme="outline" size="24" fill="#333" strokeWidth={3} />,
-  linux: <TencentQq theme="outline" size="24" fill="#333" strokeWidth={3} />
+  windows: <Windows {...ICON_INFO} strokeWidth={2} />,
+  macos: <Apple {...ICON_INFO} strokeWidth={2} />,
+  linux: <TencentQq {...ICON_INFO} strokeWidth={2} />
 }
 
 export default () => {
@@ -48,7 +49,7 @@ export default () => {
             })
           }}
         >
-          <SettingTwo theme="outline" size={20} fill="#333" strokeWidth={3} />
+          <SettingTwo {...ICON_INFO} />
         </button>
 
         {/* 标题 */}

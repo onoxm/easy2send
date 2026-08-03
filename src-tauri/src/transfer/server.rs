@@ -130,6 +130,12 @@ async fn receive_single_file(
     stream.read_exact(&mut size_buf).await?;
     let total_size = u64::from_be_bytes(size_buf);
 
+    // 通知前端：开始接收（文件名 + 总大小）
+    let _ = app.emit(
+        "receive-start",
+        serde_json::json!({ "name": filename, "total_size": total_size }),
+    );
+
     let file_path = safe_join(save_dir, &filename)?;
     if let Some(parent) = file_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -173,6 +179,16 @@ async fn receive_folder(stream: &mut TcpStream, app: &AppHandle, save_dir: &Path
     stream.read_exact(&mut count_buf).await?;
     let entry_count = u32::from_be_bytes(count_buf) as usize;
 
+    // 通知前端：开始接收文件夹（总大小 + 条目数）
+    let _ = app.emit(
+        "receive-start",
+        serde_json::json!({
+            "name": "文件夹",
+            "total_size": total_size,
+            "entry_count": entry_count
+        }),
+    );
+
     let mut received: u64 = 0;
     let mut last_emit = std::time::Instant::now();
 
@@ -194,6 +210,16 @@ async fn receive_folder(stream: &mut TcpStream, app: &AppHandle, save_dir: &Path
 
         if entry_type == ENTRY_DIR {
             tokio::fs::create_dir_all(&target).await?;
+            // 目录条目也检查进度，避免大量空目录时不触发事件
+            if last_emit.elapsed() >= std::time::Duration::from_millis(100) {
+                let progress = if total_size > 0 {
+                    (received as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                };
+                let _ = app.emit("receive-progress", (received, total_size, progress));
+                last_emit = std::time::Instant::now();
+            }
         } else if entry_type == ENTRY_FILE {
             // 4. 文件大小
             let mut size_buf = [0u8; 8];
@@ -213,21 +239,21 @@ async fn receive_folder(stream: &mut TcpStream, app: &AppHandle, save_dir: &Path
                 file.write_all(&buffer[..to_read]).await?;
                 remaining -= to_read as u64;
                 received += to_read as u64;
+
+                // 限频 100ms，在循环内检查（与单文件模式一致）
+                if last_emit.elapsed() >= std::time::Duration::from_millis(100)
+                    || received >= total_size
+                {
+                    let progress = if total_size > 0 {
+                        (received as f64 / total_size as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    let _ = app.emit("receive-progress", (received, total_size, progress));
+                    last_emit = std::time::Instant::now();
+                }
             }
             file.flush().await?;
-
-            // 限频发送进度，避免事件风暴
-            if last_emit.elapsed() >= std::time::Duration::from_millis(100)
-                || received >= total_size
-            {
-                let progress = if total_size > 0 {
-                    (received as f64 / total_size as f64) * 100.0
-                } else {
-                    0.0
-                };
-                let _ = app.emit("receive-progress", (received, total_size, progress));
-                last_emit = std::time::Instant::now();
-            }
         } else {
             return Err(anyhow!("未知的条目类型: {}", entry_type));
         }

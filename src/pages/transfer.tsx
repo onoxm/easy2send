@@ -1,29 +1,59 @@
-import { Layout, ProgressBar } from '@/components'
-import { useNotification } from '@/hooks'
-import useStore from '@/store'
+import { sendFile } from '@/api/fs'
+import { ICON_INFO } from '@/common/common'
+import { Layout, ProgressBar, type DataInfo } from '@/components'
+import { useNotification, useTauriDrag } from '@/hooks'
 import { platformIcon } from '@/pages'
-import { invoke } from '@tauri-apps/api/core'
+import useStore from '@/store'
+import { Back, Receiver, Send } from '@icon-park/react'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+
+export type TransferType = 'send' | 'receive'
 
 export default () => {
   const connectedDevice = useStore('connectedDevice')
   const navigate = useNavigate()
   const sendNotification = useNotification()
 
+  const [type, setType] = useState<TransferType>('send')
+  const [_ready2SendFiles, setReady2SendFiles] = useState<string[]>([])
+
+  const typeBtnList = [
+    {
+      type: 'send',
+      txt: '发送文件',
+      icon: <Send {...ICON_INFO} fill="white" />
+    },
+    {
+      type: 'receive',
+      txt: '接收文件',
+      icon: <Receiver {...ICON_INFO} fill="white" />
+    }
+  ] as const
+
   // 发送进度
-  const [sendStatus, setSendStatus] = useState('就绪')
-  const [sendProgress, setSendProgress] = useState(0)
-  const [sendTransferred, setSendTransferred] = useState(0)
-  const [sendTotal, setSendTotal] = useState(0)
+  const [sendInfo, setSendInfo] = useState<DataInfo>({
+    status: '就绪',
+    progress: 0,
+    transferred: 0,
+    total: 0
+  })
+  const updateSendInfo = (info: Partial<DataInfo>) => {
+    setSendInfo(prev => ({ ...prev, ...info }))
+  }
 
   // 接收进度
-  const [recvStatus, setRecvStatus] = useState('就绪')
-  const [recvProgress, setRecvProgress] = useState(0)
-  const [recvTransferred, setRecvTransferred] = useState(0)
-  const [recvTotal, setRecvTotal] = useState(0)
+  const [recvInfo, setRecvInfo] = useState<DataInfo>({
+    status: '就绪',
+    progress: 0,
+    transferred: 0,
+    total: 0
+  })
+  const updateRecvInfo = (info: Partial<DataInfo>) => {
+    setRecvInfo(prev => ({ ...prev, ...info }))
+  }
 
   // 监听后端事件
   useEffect(() => {
@@ -35,31 +65,52 @@ export default () => {
           number,
           number
         ]
-        setSendProgress(percent)
-        setSendTransferred(received)
-        setSendTotal(totalSize)
-        setSendStatus('发送中...')
+        updateSendInfo({
+          status: '发送中...',
+          progress: percent,
+          transferred: received,
+          total: totalSize
+        })
       }),
       listen('send-complete', event => {
-        setSendStatus(`✅ 发送完成: ${event.payload}`)
-        setSendProgress(100)
+        updateSendInfo({
+          status: `✅ 发送完成: ${event.payload}`,
+          progress: 100
+        })
         sendNotification('发送完成')
       }),
       // 接收事件
+      listen('receive-start', event => {
+        const { name, total_size } = event.payload as {
+          name: string
+          total_size: number
+        }
+        setType('receive')
+        updateRecvInfo({
+          status: `接收中: ${name}`,
+          progress: 0,
+          transferred: 0,
+          total: total_size
+        })
+      }),
       listen('receive-progress', event => {
         const [received, totalSize, percent] = event.payload as [
           number,
           number,
           number
         ]
-        setRecvProgress(percent)
-        setRecvTransferred(received)
-        setRecvTotal(totalSize)
-        setRecvStatus('接收中...')
+        updateRecvInfo({
+          status: '接收中...',
+          progress: percent,
+          transferred: received,
+          total: totalSize
+        })
       }),
       listen('receive-complete', event => {
-        setRecvStatus(`✅ 接收完成: ${event.payload}`)
-        setRecvProgress(100)
+        updateRecvInfo({
+          status: `✅ 接收完成: ${event.payload}`,
+          progress: 100
+        })
         sendNotification('接收完成')
       })
     ]
@@ -80,43 +131,60 @@ export default () => {
 
   const addr = `${connectedDevice.ip}:${connectedDevice.port}`
 
-  const sendFile = async () => {
+  const handleBack = () => {
+    useStore.setState({ connectedDevice: null })
+    navigate('/')
+  }
+
+  const handlerSendFile = async () => {
     const picked = await open({
       multiple: false,
       title: '选择要发送的文件'
     })
     if (!picked || typeof picked !== 'string') return
 
-    try {
-      setSendStatus('正在发送文件...')
-      setSendProgress(0)
-      await invoke('send_file', { addr, filePath: picked })
-    } catch (error) {
-      setSendStatus(`❌ 发送失败: ${error}`)
-    }
+    sendFile(
+      addr,
+      picked,
+      () =>
+        updateSendInfo({
+          status: '正在发送文件...',
+          progress: 0
+        }),
+      error =>
+        updateSendInfo({
+          status: `❌ 发送失败: ${error}`
+        })
+    )
   }
 
-  const sendFolder = async () => {
-    const picked = await open({
-      multiple: false,
-      directory: true,
-      title: '选择要发送的文件夹'
-    })
-    if (!picked || typeof picked !== 'string') return
-
-    try {
-      setSendStatus('正在发送文件夹...')
-      setSendProgress(0)
-      await invoke('send_file', { addr, filePath: picked })
-    } catch (error) {
-      setSendStatus(`❌ 发送失败: ${error}`)
-    }
+  const handlerSend = async (files: string[]) => {
+    sendFile(
+      addr,
+      files[0],
+      () =>
+        updateSendInfo({
+          status: '正在发送文件...',
+          progress: 0
+        }),
+      error =>
+        updateSendInfo({
+          status: `❌ 发送失败: ${error}`
+        })
+    )
   }
 
-  const handleBack = () => {
-    useStore.setState({ connectedDevice: null })
-    navigate('/')
-  }
+  useTauriDrag(
+    e => {
+      if (e.payload.type === 'drop' && type === 'send') {
+        const paths = (e.payload as { paths: string[] }).paths
+        console.log(e.payload.paths)
+        setReady2SendFiles(prev => [...prev, ...paths])
+        handlerSend(paths)
+      }
+    },
+    [type]
+  )
 
   return (
     <Layout>
@@ -124,10 +192,11 @@ export default () => {
         {/* 顶部：返回 + 对端信息 */}
         <div className="flex justify-between items-center mb-4">
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
+            className="base_btn flex items-center gap-2"
             onClick={handleBack}
           >
-            返回首页
+            <Back {...ICON_INFO} fill="white" />
+            <span>返回首页</span>
           </button>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-xl">
@@ -140,39 +209,37 @@ export default () => {
           </div>
         </div>
 
-        {/* 发送区 */}
         <div className="mb-6">
-          <h3 className="mb-2">📤 发送文件</h3>
-          <div className="flex gap-2 mb-3">
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600"
-              onClick={sendFile}
-            >
-              📄 选择并发送文件
-            </button>
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600"
-              onClick={sendFolder}
-            >
-              📁 选择并发送文件夹
-            </button>
+          <div className="mb-2 flex gap-2 items-center">
+            {typeBtnList.map(({ type, txt, icon }) => (
+              <button
+                key={type}
+                className="base_btn flex items-center gap-2"
+                onClick={() => setType(type)}
+              >
+                {icon} <span>{txt}</span>
+              </button>
+            ))}
           </div>
+          {/* {ready2SendFiles.length > 0 && (
+            <div className="mb-2 flex justify-between items-center">
+              <span className="text-sm text-gray-600">已发送</span>
+              <span className="text-sm text-gray-600">
+                {ready2SendFiles.length} 个文件
+              </span>
+            </div>
+          )}
+          {ready2SendFiles.map(file => (
+            <div key={file} className="text-sm text-gray-600">
+              {file}
+            </div>
+          ))} */}
           <ProgressBar
-            status={sendStatus}
-            progress={sendProgress}
-            transferred={sendTransferred}
-            total={sendTotal}
-          />
-        </div>
-
-        {/* 接收区 */}
-        <div>
-          <h3 className="mb-2">📥 接收文件</h3>
-          <ProgressBar
-            status={recvStatus}
-            progress={recvProgress}
-            transferred={recvTransferred}
-            total={recvTotal}
+            type={type}
+            info={type === 'send' ? sendInfo : recvInfo}
+            onClick={() => {
+              type === 'send' && handlerSendFile()
+            }}
           />
         </div>
       </div>

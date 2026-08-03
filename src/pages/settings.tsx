@@ -1,5 +1,6 @@
 import { setDeviceName } from '@/api/discovery'
 import { windowBasicOperation } from '@/api/tauri'
+import { ICON_INFO } from '@/common/common'
 import useStore from '@/store'
 import { EditTwo, FolderOpen } from '@icon-park/react'
 import { invoke } from '@tauri-apps/api/core'
@@ -20,16 +21,14 @@ export default () => {
   const savePathBtnList = [
     {
       txt: '打开文件夹',
-      icon: (
-        <FolderOpen theme="outline" size={20} fill="#333" strokeWidth={3} />
-      ),
+      icon: <FolderOpen {...ICON_INFO} />,
       onClick: () => {
         invoke('open_file', { path: savePath })
       }
     },
     {
       txt: '更改保存路径',
-      icon: <EditTwo theme="outline" size={20} fill="#333" strokeWidth={3} />,
+      icon: <EditTwo {...ICON_INFO} />,
       onClick: async () => {
         const selected = await open({
           directory: true,

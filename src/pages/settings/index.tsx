@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { check } from '@tauri-apps/plugin-updater'
 import { Button, Switch } from 'ono-react-element'
 import { useState } from 'react'
+import { SettingsBar } from './SettingsBar'
 
 export default () => {
   const { savePath, autoCheckUpdate, canUpdate, deviceName } = useStore([
@@ -53,28 +54,32 @@ export default () => {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-2">
-      <h1>设置</h1>
-      <div className="w-full flex gap-2">
-        <input
-          readOnly
-          type="text"
-          value={savePath}
-          className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1"
-        />
-        {savePathBtnList.map(({ txt, icon, onClick }) => (
-          <button
-            key={txt}
-            className="little_btn hover:bg-gray-200 hover:text-gray-800"
-            onClick={onClick}
-          >
-            {icon}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <h3>设备别名</h3>
+  const settingsBarList = [
+    {
+      title: '保存路径',
+      children: (
+        <>
+          <input
+            readOnly
+            type="text"
+            value={savePath}
+            className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1"
+          />
+          {savePathBtnList.map(({ txt, icon, onClick }) => (
+            <button
+              key={txt}
+              className="little_btn hover:bg-gray-200 hover:text-gray-800"
+              onClick={onClick}
+            >
+              {icon}
+            </button>
+          ))}
+        </>
+      )
+    },
+    {
+      title: '设备别名',
+      children: (
         <input
           type="text"
           value={deviceName}
@@ -84,29 +89,44 @@ export default () => {
           onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={() => setDeviceName(deviceName).catch(console.error)}
         />
-      </div>
-      <div className="flex items-center gap-2">
-        <h3>自动更新</h3>
-        <Switch
-          style={{ width: 40, height: 24 }}
-          id="autoUpdate"
-          color={'#22c55e'}
-          checked={autoCheckUpdate}
-          onChange={bl =>
-            useStore.setState(
-              Object.assign(
-                { autoCheckUpdate: bl },
-                bl ? { updateNow: true } : {}
+      )
+    },
+    {
+      title: '自动更新',
+      children: (
+        <>
+          <Switch
+            style={{ width: 40, height: 24 }}
+            id="autoUpdate"
+            color={'#22c55e'}
+            checked={autoCheckUpdate}
+            onChange={bl =>
+              useStore.setState(
+                Object.assign(
+                  { autoCheckUpdate: bl },
+                  bl ? { updateNow: true } : {}
+                )
               )
-            )
-          }
-        />
-        {canUpdate && (
-          <Button loading={downloading} onClick={handleUpdate}>
-            更新软件
-          </Button>
-        )}
-      </div>
+            }
+          />
+          {canUpdate && (
+            <Button loading={downloading} onClick={handleUpdate}>
+              更新软件
+            </Button>
+          )}
+        </>
+      )
+    }
+  ]
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h1>设置</h1>
+      {settingsBarList.map(({ title, children }) => (
+        <SettingsBar key={title} title={title}>
+          {children}
+        </SettingsBar>
+      ))}
     </div>
   )
 }

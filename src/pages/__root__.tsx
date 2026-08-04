@@ -84,6 +84,11 @@ export default () => {
     }
   }, [navigate])
 
+  // useEffect(() => {
+  //   document.documentElement.classList.remove('dark')
+  //   document.documentElement.classList.add(theme)
+  // }, [theme])
+
   return (
     <main
       className="w-screen h-screen flex flex-col"

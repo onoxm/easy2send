@@ -14,6 +14,7 @@ pub mod device_id;
 pub mod register;
 pub mod state;
 
+use crate::common::hostname_ip::lan_ips_csv;
 use crate::discovery::state::health_check;
 // re-export 供 lib.rs 构造默认状态
 pub use crate::discovery::state::{DiscoveryState, SharedDiscoveryState};
@@ -75,9 +76,9 @@ fn register_with_daemon(
         return Ok(None);
     }
 
-    let local_ip = local_ip_address::local_ip()
-        .map_err(|e| format!("获取本机 IP 失败: {}", e))?
-        .to_string();
+    // 枚举所有有效 LAN IP（排除虚拟网卡），注册为逗号分隔的多 IP，
+    // mdns-sd 0.13 原生支持 AsIpAddrs，对端解析时优先选同网段 IP
+    let local_ip = lan_ips_csv().ok_or_else(|| "未找到有效的 LAN 网卡".to_string())?;
     println!("[mdns] 本机 IP: {}", local_ip);
 
     let info = register::build_service_info(
@@ -152,15 +153,16 @@ pub async fn start_discovery(
     let shared_state: SharedDiscoveryState = state.inner().clone();
     let browse_task = browse::spawn_browse_task(receiver, shared_state, app.clone());
 
-    // 6. 启动心跳检测：每 5s 扫描，15s 未刷新判定离线
+    // 6. 启动心跳检测：每 10s 扫描，30s 未刷新则 TCP 验证（在线刷新 last_seen，离线移除）
+    //    注：mdns-sd 的 ServiceResolved 不定期重触发，需 TCP 验证保活
     let health_state: SharedDiscoveryState = state.inner().clone();
     let health_app = app.clone();
     let health_task = tauri::async_runtime::spawn(async move {
         health_check(
             health_state,
             health_app,
-            Duration::from_secs(5),
-            Duration::from_secs(15),
+            Duration::from_secs(10),
+            Duration::from_secs(30),
         )
         .await;
     });
@@ -219,7 +221,9 @@ pub async fn stop_discovery(state: tauri::State<'_, SharedDiscoveryState>) -> Re
 /// 接收端停止时调用：注销服务让其他设备看不到自己，但 browse 继续运行
 /// （browse 由根布局管理，应用生命周期内常驻）。
 #[tauri::command]
-pub async fn unregister_service(state: tauri::State<'_, SharedDiscoveryState>) -> Result<(), String> {
+pub async fn unregister_service(
+    state: tauri::State<'_, SharedDiscoveryState>,
+) -> Result<(), String> {
     let mut s = state.lock().await;
     if let (Some(daemon), Some(fullname)) = (s.daemon.as_ref(), s.registered_fullname.as_ref()) {
         println!("[mdns] 注销服务: {}", fullname);
@@ -261,9 +265,7 @@ pub async fn set_device_name(
         s.last_config.as_ref(),
         s.self_device_id.as_ref(),
     ) {
-        let local_ip = local_ip_address::local_ip()
-            .map_err(|e| format!("获取本机 IP 失败: {}", e))?
-            .to_string();
+        let local_ip = lan_ips_csv().ok_or_else(|| "未找到有效的 LAN 网卡".to_string())?;
 
         let new_info = register::build_service_info(
             device_id,

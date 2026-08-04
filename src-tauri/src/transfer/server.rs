@@ -48,7 +48,12 @@ pub(super) async fn run_server(
 // 分派到单文件 / 文件夹接收逻辑
 async fn handle_client(stream: &mut TcpStream, app: AppHandle, save_dir: PathBuf) -> Result<()> {
     let mut mode_buf = [0u8; 1];
-    stream.read_exact(&mut mode_buf).await?;
+    // 心跳检测的 TCP 连接验证会立即关闭连接，read_exact 返回 UnexpectedEof，静默忽略
+    match stream.read_exact(&mut mode_buf).await {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
+        Err(e) => return Err(e.into()),
+    }
     let mode = mode_buf[0];
 
     match mode {

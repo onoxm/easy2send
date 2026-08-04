@@ -19,7 +19,19 @@ export default () => {
   const { devices, refresh } = useDevices()
   const navigate = useNavigate()
   const deviceName = useStore('deviceName')
+  // const { deviceName, theme } = useStore(["deviceName", "theme"]);
   const [connecting, setConnecting] = useState<string | null>(null)
+
+  // const [, changeTheme] = useThemePro({
+  //   initTheme: theme as 'light' | 'dark',
+  //   themeRules: isDark => {
+  //     const theme = isDark ? 'dark' : 'light'
+  //     useStore.setState({ theme })
+  //   }
+  // })
+
+  // const changeThemeIcon = () =>
+  //   theme === 'light' ? <SunOne {...ICON_INFO} /> : <Moon {...ICON_INFO} />
 
   // 点击设备 → 发送握手 → 跳转传输页
   const handleConnect = async (deviceId: string) => {
@@ -38,19 +50,32 @@ export default () => {
   return (
     <Layout>
       <div className="flex flex-col gap-4 w-full flex-1 justify-center items-center relative p-6">
-        {/* 设置按钮 */}
-        <button
-          className="little_btn absolute top-2 right-2"
-          onClick={() => {
-            createNewWindow('settings', {
-              url: '/settings',
-              width: 600,
-              height: 500
-            })
-          }}
-        >
-          <SettingTwo {...ICON_INFO} />
-        </button>
+        <div className="flex items-center gap-2 absolute top-2 right-2">
+          {/* <button
+            className="little_btn"
+            onClick={(e) =>
+              changeTheme({
+                targetTheme: theme === 'light' ? 'dark' : 'light',
+                element: e.currentTarget
+              })
+            }
+          >
+            {changeThemeIcon()}
+          </button> */}
+
+          <button
+            className="little_btn"
+            onClick={() => {
+              createNewWindow('settings', {
+                url: '/settings',
+                width: 600,
+                height: 500
+              })
+            }}
+          >
+            <SettingTwo {...ICON_INFO} />
+          </button>
+        </div>
 
         {/* 标题 */}
         <div className="text-center">

@@ -1,5 +1,5 @@
+use crate::common::hostname_ip::list_local_lan_ips;
 use crate::discovery::{DeviceInfo, DiscoveryConfig};
-use local_ip_address::list_afinet_netifas;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
@@ -48,35 +48,6 @@ pub enum UpsertResult {
     Added,
     Updated,
     NoChange,
-}
-
-// ---------- 网卡过滤 ----------
-
-/// 列举本机所有"有效"网卡 IP（排除回环、链路本地、Docker 等）
-pub fn list_local_lan_ips() -> Vec<IpAddr> {
-    let mut result = Vec::new();
-    if let Ok(interfaces) = list_afinet_netifas() {
-        for (_name, ip) in interfaces {
-            if is_valid_lan_ip(&ip) {
-                result.push(ip);
-            }
-        }
-    }
-    result
-}
-
-fn is_valid_lan_ip(ip: &IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(v4) => {
-            let oct = v4.octets();
-            !v4.is_loopback()
-                && !v4.is_link_local() // 169.254.x.x
-                && !v4.is_unspecified()
-                // Docker 默认网段 172.16.0.0/12
-                && !(oct[0] == 172 && (16..=31).contains(&oct[1]))
-        }
-        IpAddr::V6(v6) => !v6.is_loopback() && !v6.is_unspecified() && !v6.is_multicast(),
-    }
 }
 
 /// 判断目标 IP 是否与本机任一网卡同 /24 网段（IPv6 简化处理）
@@ -202,6 +173,12 @@ pub async fn list_devices(state: &SharedDiscoveryState) -> Vec<DeviceInfo> {
 ///
 /// mdns-sd 的 goodbye 包能覆盖正常退出，但拔网线 / 进程崩溃场景收不到，
 /// 需后台轮询 last_seen 超时清理。
+///
+/// 注意：mdns-sd 的 `ServiceResolved` 事件只在服务首次解析时触发，之后不会
+/// 定期重复触发（服务信息不变时）。因此 `last_seen` 不会自动刷新，超时后
+/// 不能直接移除设备，需要先通过 TCP 连接验证设备是否真的离线。
+/// - TCP 连接成功 → 设备在线，刷新 `last_seen`
+/// - TCP 连接失败 → 设备离线，移除
 pub async fn health_check(
     state: SharedDiscoveryState,
     app: AppHandle,
@@ -209,21 +186,40 @@ pub async fn health_check(
     timeout: Duration,
 ) {
     let timeout_ms = timeout.as_millis() as u64;
+    let verify_timeout = Duration::from_secs(3);
     loop {
         tokio::time::sleep(interval).await;
 
-        let timed_out_ids: Vec<String> = {
+        // 收集超时设备（ip, port 用于 TCP 连接验证）
+        let timed_out: Vec<(String, String, u16)> = {
             let s = state.lock().await;
             let now = current_unix_ms();
             s.devices
                 .iter()
                 .filter(|(_, d)| now.saturating_sub(d.last_seen) > timeout_ms)
-                .map(|(id, _)| id.clone())
+                .map(|(id, d)| (id.clone(), d.ip.clone(), d.port))
                 .collect()
         };
 
-        for id in timed_out_ids {
-            remove_device(&state, &app, &id).await;
+        for (id, ip, port) in timed_out {
+            let addr = format!("{}:{}", ip, port);
+            // TCP 连接验证：成功说明设备在线，失败说明离线
+            let online =
+                tokio::time::timeout(verify_timeout, tokio::net::TcpStream::connect(&addr))
+                    .await
+                    .map(|r| r.is_ok())
+                    .unwrap_or(false);
+
+            if online {
+                // 设备在线，刷新 last_seen（连接 drop 自动关闭，对端 handle_client 会收到 EOF 静默处理）
+                let mut s = state.lock().await;
+                if let Some(d) = s.devices.get_mut(&id) {
+                    d.last_seen = current_unix_ms();
+                }
+            } else {
+                // 设备离线，移除
+                remove_device(&state, &app, &id).await;
+            }
         }
     }
 }

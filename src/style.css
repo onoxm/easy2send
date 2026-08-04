@@ -1,5 +1,9 @@
-.base_btn {
-  @apply bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600;
+:root {
+  background-color: #f5f7fa;
+}
+
+:root.dark {
+  background-color: #2d3748;
 }
 
 .little_btn {

@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import Unocss from 'unocss/vite'
 import autoRouter from '@onoxm/vite-plugin-auto-router'
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST
 
 // https://vite.dev/config/

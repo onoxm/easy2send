@@ -1,16 +1,24 @@
 import { sendFile } from '@/api/fs'
 import { ICON_INFO } from '@/common/common'
-import { Layout, ProgressBar, type DataInfo } from '@/components'
+import { Layout } from '@/components'
 import { useNotification, useTauriDrag } from '@/hooks'
 import { platformIcon } from '@/pages'
 import useStore from '@/store'
 import { Back, Receiver, Send } from '@icon-park/react'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
+import { chainClassNames, formatFileSize } from 'ono-react-element'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 export type TransferType = 'send' | 'receive'
+
+interface DataInfo {
+  status: string
+  progress: number
+  transferred: number
+  total: number
+}
 
 export default () => {
   const connectedDevice = useStore('connectedDevice')
@@ -24,12 +32,12 @@ export default () => {
     {
       type: 'send',
       txt: '发送文件',
-      icon: <Send {...ICON_INFO} fill="white" />
+      icon: <Send {...ICON_INFO} strokeWidth={2} />
     },
     {
       type: 'receive',
       txt: '接收文件',
-      icon: <Receiver {...ICON_INFO} fill="white" />
+      icon: <Receiver {...ICON_INFO} strokeWidth={2} />
     }
   ] as const
 
@@ -138,14 +146,14 @@ export default () => {
 
   const handlerSendFile = async () => {
     const picked = await open({
-      multiple: false,
+      multiple: true,
       title: '选择要发送的文件'
     })
-    if (!picked || typeof picked !== 'string') return
+    if (!picked || picked.length === 0) return
 
     sendFile(
       addr,
-      picked,
+      picked[0],
       () =>
         updateSendInfo({
           status: '正在发送文件...',
@@ -188,14 +196,14 @@ export default () => {
 
   return (
     <Layout>
-      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ padding: '20px', width: '600px', margin: '0 auto' }}>
         {/* 顶部：返回 + 对端信息 */}
         <div className="flex justify-between items-center mb-4">
           <button
-            className="base_btn flex items-center gap-2"
+            className="flex items-center gap-2 p-2 border border-solid border-[#333] rounded-[30px]"
             onClick={handleBack}
           >
-            <Back {...ICON_INFO} fill="white" />
+            <Back {...ICON_INFO} strokeWidth={2} />
             <span>返回首页</span>
           </button>
           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -210,17 +218,6 @@ export default () => {
         </div>
 
         <div className="mb-6">
-          <div className="mb-2 flex gap-2 items-center">
-            {typeBtnList.map(({ type, txt, icon }) => (
-              <button
-                key={type}
-                className="base_btn flex items-center gap-2"
-                onClick={() => setType(type)}
-              >
-                {icon} <span>{txt}</span>
-              </button>
-            ))}
-          </div>
           {/* {ready2SendFiles.length > 0 && (
             <div className="mb-2 flex justify-between items-center">
               <span className="text-sm text-gray-600">已发送</span>
@@ -234,13 +231,74 @@ export default () => {
               {file}
             </div>
           ))} */}
-          <ProgressBar
-            type={type}
-            info={type === 'send' ? sendInfo : recvInfo}
+          <div className="flex">
+            {typeBtnList.map(({ type: btnType, txt, icon }) => (
+              <button
+                key={btnType}
+                className={chainClassNames(
+                  'flex items-center gap-2 p-2 rounded-md',
+                  type === btnType ? 'border border-[#333] border-solid' : ''
+                )}
+                style={{
+                  borderBottom: 0,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0
+                }}
+                onClick={() => setType(btnType)}
+              >
+                {icon} <span>{txt}</span>
+              </button>
+            ))}
+          </div>
+
+          <div
+            style={{
+              border: '1px solid #333',
+              padding: '10px',
+              borderRadius: '4px',
+              borderTopLeftRadius: type === 'send' ? 0 : '4px'
+            }}
             onClick={() => {
               type === 'send' && handlerSendFile()
             }}
-          />
+          >
+            <h4>状态</h4>
+            <p>{type === 'send' ? sendInfo.status : recvInfo.status}</p>
+            {(type === 'send' ? sendInfo.progress : recvInfo.progress) > 0 ? (
+              <div>
+                <span>
+                  {(type === 'send'
+                    ? sendInfo.progress
+                    : recvInfo.progress
+                  ).toFixed(1)}
+                  %
+                </span>
+                <progress
+                  value={
+                    type === 'send' ? sendInfo.progress : recvInfo.progress
+                  }
+                  max="100"
+                  style={{ width: '100%' }}
+                />
+                <span>
+                  {formatFileSize(
+                    type === 'send'
+                      ? sendInfo.transferred
+                      : recvInfo.transferred,
+                    { decimalPlaces: 1 }
+                  )}{' '}
+                  /{' '}
+                  {formatFileSize(
+                    type === 'send' ? sendInfo.total : recvInfo.total,
+                    { decimalPlaces: 1 }
+                  )}
+                </span>
+              </div>
+            ) : (
+              sendInfo.progress === 0 &&
+              type === 'send' && <div>点击或拖拽文件到此处发送</div>
+            )}
+          </div>
         </div>
       </div>
     </Layout>

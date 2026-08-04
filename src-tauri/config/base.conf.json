@@ -1,4 +1,6 @@
 {
   "theme": "light",
-  "savePath": ""
+  "savePath": "",
+  "deviceName": "",
+  "autoCheckUpdate": true
 }

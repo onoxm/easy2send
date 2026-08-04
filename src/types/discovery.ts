@@ -7,8 +7,10 @@ export interface DeviceInfo {
   deviceId: string
   /** 用户可见别名 */
   deviceName: string
-  /** 设备 IP（与本机同网段者优先） */
+  /** 设备 IP（与本机同网段者优先；connect_device 成功后为实际握手成功的 IP） */
   ip: string
+  /** 设备所有可达 IPv4 地址（mDNS 注册的全部 IP，供连接失败时逐个尝试） */
+  addresses?: string[]
   /** TCP 传输端口 */
   port: number
   /** 平台：windows / macos / linux */

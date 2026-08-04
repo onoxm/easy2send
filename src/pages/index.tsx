@@ -1,7 +1,6 @@
 import { connectDevice } from '@/api/discovery'
 import { createNewWindow } from '@/api/tauri'
 import { ICON_INFO } from '@/common/common'
-import { Layout } from '@/components'
 import { useDevices } from '@/hooks'
 import useStore from '@/store'
 import { Apple, SettingTwo, TencentQq, Windows } from '@icon-park/react'
@@ -48,10 +47,9 @@ export default () => {
   }
 
   return (
-    <Layout>
-      <div className="flex flex-col gap-4 w-full flex-1 justify-center items-center relative p-6">
-        <div className="flex items-center gap-2 absolute top-2 right-2">
-          {/* <button
+    <div className="flex flex-col gap-4 w-full flex-1 justify-center items-center relative p-6">
+      <div className="flex items-center gap-2 absolute top-2 right-2">
+        {/* <button
             className="little_btn"
             onClick={(e) =>
               changeTheme({
@@ -63,71 +61,70 @@ export default () => {
             {changeThemeIcon()}
           </button> */}
 
+        <button
+          className="little_btn"
+          onClick={() => {
+            createNewWindow('settings', {
+              url: '/settings',
+              width: 600,
+              height: 500
+            })
+          }}
+        >
+          <SettingTwo {...ICON_INFO} />
+        </button>
+      </div>
+
+      {/* 标题 */}
+      <div className="text-center">
+        <h2 className="text-xl font-bold mb-1">Easy2Send</h2>
+        <p className="text-sm text-gray-500">
+          {deviceName || '...'} · 点击设备开始互传
+        </p>
+      </div>
+
+      {/* 设备列表 */}
+      <div className="w-full max-w-md">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">
+            在线设备（{devices.length}）
+          </span>
           <button
-            className="little_btn"
-            onClick={() => {
-              createNewWindow('settings', {
-                url: '/settings',
-                width: 600,
-                height: 500
-              })
-            }}
+            className="text-xs text-blue-500 hover:underline cursor-pointer"
+            onClick={refresh}
           >
-            <SettingTwo {...ICON_INFO} />
+            刷新
           </button>
         </div>
 
-        {/* 标题 */}
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-1">Easy2Send</h2>
-          <p className="text-sm text-gray-500">
-            {deviceName || '...'} · 点击设备开始互传
-          </p>
-        </div>
-
-        {/* 设备列表 */}
-        <div className="w-full max-w-md">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-600">
-              在线设备（{devices.length}）
-            </span>
-            <button
-              className="text-xs text-blue-500 hover:underline cursor-pointer"
-              onClick={refresh}
-            >
-              刷新
-            </button>
+        {devices.length === 0 ? (
+          <div className="text-center text-gray-400 py-8 border border-dashed rounded-md">
+            暂无在线设备，请确认其他设备已启动 Easy2Send
           </div>
-
-          {devices.length === 0 ? (
-            <div className="text-center text-gray-400 py-8 border border-dashed rounded-md">
-              暂无在线设备，请确认其他设备已启动 Easy2Send
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {devices.map(d => (
-                <button
-                  key={d.deviceId}
-                  className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
-                  onClick={() => handleConnect(d.deviceId)}
-                  disabled={connecting !== null}
-                >
-                  <span className="text-2xl">{platformIcon[d.platform]}</span>
-                  <div className="flex-1 text-left">
-                    <div className="font-medium">{d.deviceName}</div>
-                    <div className="text-xs text-gray-500">
-                      {d.ip}:{d.port} · {d.platform} · v{d.version}
-                    </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {devices.map(d => (
+              <button
+                key={d.deviceId}
+                className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
+                onClick={() => handleConnect(d.deviceId)}
+                disabled={connecting !== null}
+              >
+                <span className="text-2xl">{platformIcon[d.platform]}</span>
+                <div className="flex-1 text-left">
+                  <div className="font-medium">{d.deviceName}</div>
+                  <div className="text-xs text-gray-500">
+                    {d.ip}:{d.port} · {d.platform} · v{d.version}
                   </div>
-                  {connecting === d.deviceId && (
-                    <span className="text-xs text-blue-500">连接中...</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                </div>
+                {connecting === d.deviceId && (
+                  <span className="text-xs text-blue-500">连接中...</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-    </Layout>
+    </div>
   )
 }

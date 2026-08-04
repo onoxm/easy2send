@@ -17,6 +17,7 @@ const initialState = {
   version: '0.0.0',
   canUpdate: false,
   autoCheckUpdate: true,
+  concurrentUploads: 2, // 同时并发传输的文件数（1-5）
   // 设备发现相关
   deviceName: '', // 本机广播别名，空则用默认值
   deviceId: '', // 本机 UUID（启动时由后端读取，不持久化）
@@ -40,7 +41,8 @@ const useStore = createStoreHook(
               'savePath',
               'canUpdate',
               'autoCheckUpdate',
-              'deviceName'
+              'deviceName',
+              'concurrentUploads'
             ]),
           storage: createJSONStorage(() => localStorage)
         })

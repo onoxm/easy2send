@@ -36,6 +36,8 @@ pub struct DeviceInfo {
     pub device_name: String,
     /// 设备 IP（与本机同网段者优先）
     pub ip: String,
+    /// 设备所有可达 IPv4 地址（mDNS 注册的全部 IP，供连接失败时逐个尝试）
+    pub addresses: Vec<String>,
     /// TCP 传输端口
     pub port: u16,
     /// 平台：windows / macos / linux

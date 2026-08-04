@@ -1,12 +1,12 @@
 import { getDeviceId } from '@/api/discovery'
 import { basePath } from '@/api/tauri'
 import useStore from '@/store'
-import operationConfig, { initConfig } from '@/uitls/operationConfig'
+import operationConfig, { initConfig } from '@/utils/operationConfig'
 import { invoke } from '@tauri-apps/api/core'
 import { useEffect } from 'react'
 
 export const useConfig = () => {
-  const config = useStore([
+  const { deviceId, ...config } = useStore([
     'theme',
     'savePath',
     'autoCheckUpdate',
@@ -35,12 +35,12 @@ export const useConfig = () => {
 
   // deviceId 就绪后，若未设置过 deviceName，生成默认值
   useEffect(() => {
-    if (config.deviceId && !config.deviceName) {
+    if (deviceId && !config.deviceName) {
       useStore.setState({
-        deviceName: `Easy2Send-${config.deviceId.slice(0, 6)}`
+        deviceName: `Easy2Send-${deviceId.slice(0, 6)}`
       })
     }
-  }, [config.deviceId, config.deviceName])
+  }, [deviceId, config.deviceName])
 
   useEffect(() => {
     if (config.savePath === '') setSavePath()

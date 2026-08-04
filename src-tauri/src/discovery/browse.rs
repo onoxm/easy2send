@@ -132,6 +132,8 @@ fn parse_resolved_service(
         eprintln!("[mdns] 无 IPv4 地址: {}", device_name);
         return None;
     }
+    // 保留全部 IPv4 供连接失败时逐个尝试（多网卡环境首选 IP 可能不可达）
+    let addresses: Vec<String> = addrs.iter().map(|ip| ip.to_string()).collect();
     let ip: IpAddr = addrs
         .into_iter()
         .copied()
@@ -151,6 +153,7 @@ fn parse_resolved_service(
         device_id,
         device_name,
         ip: ip.to_string(),
+        addresses,
         port,
         platform,
         version,

@@ -2,7 +2,7 @@
 import type { RouteObject } from 'react-router'
 import Pages from './../pages/index.tsx'
 import PagesSettings from './../pages/settings/index.tsx'
-import PagesTransfer from './../pages/transfer.tsx'
+import PagesTransfer from './../pages/transfer/index.tsx'
 import PagesRoot from './../pages/__root__.tsx'
 
 type PageConfig = Partial<

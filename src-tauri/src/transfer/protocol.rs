@@ -23,12 +23,21 @@ pub fn tune_socket_buffers(stream: &TcpStream) {
 }
 
 // ---------- 协议标识 ----------
-/// 单文件模式（兼容旧版接收端）
+/// 单文件模式（兼容旧版接收端，无 task_id）
 pub const MODE_FILE: u8 = 0;
-/// 文件夹模式
+/// 文件夹模式（兼容旧版接收端，无 task_id）
 pub const MODE_FOLDER: u8 = 1;
 /// 握手模式（对等连接：A 连接 B 时发送本机设备信息）
 pub const MODE_HANDSHAKE: u8 = 2;
+/// 批量模式：条目数 N → N 个 [entry_mode + payload]，支持多文件/文件夹一次 TCP 传输
+pub const MODE_BATCH: u8 = 3;
+/// 单文件 + 16 字节 task_id（UUID v4），事件带 task_id 便于前端分条展示
+pub const MODE_FILE_TASK: u8 = 4;
+/// 文件夹 + 16 字节 task_id（UUID v4）
+pub const MODE_FOLDER_TASK: u8 = 5;
+/// 心跳查询：对端回复本机 deviceName，供 health_check 更新设备昵称
+/// （mdns-sd 0.13 ServiceResolved 仅首次触发，改昵称后对端收不到更新）
+pub const MODE_PING: u8 = 6;
 
 // ---------- 条目类型（文件夹模式内） ----------
 pub const ENTRY_FILE: u8 = 0;

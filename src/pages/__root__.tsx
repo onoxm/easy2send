@@ -38,6 +38,10 @@ export default () => {
     const start = async () => {
       try {
         // 1. 启动 TCP 接收服务器
+        // 绑定具体本机 IP（非 0.0.0.0）：Windows 防火墙弹窗机制对具体 IP
+        // 绑定的首次入站 SYN 会触发放行弹窗，0.0.0.0 可能不触发导致入站
+        // TCP 被静默阻止 (os error 10060)。多网卡 IP 选错由 connect_device
+        // 的多 IP 容错处理。
         await invoke('start_server', {
           addr: `${ip}:${port}`,
           saveDir: savePath
@@ -95,6 +99,9 @@ export default () => {
       onContextMenu={e => e.preventDefault()}
     >
       <Outlet />
+      <div className="text-center text-sm text-gray-500 mb-2">
+        版本：{version}
+      </div>
     </main>
   )
 }

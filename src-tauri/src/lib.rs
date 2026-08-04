@@ -20,7 +20,10 @@ use discovery::{
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use transfer::{connect_device, send_file, start_server, stop_server, ServerState};
+use transfer::{
+    connect_device, create_transfer_tasks, send_file, send_files, start_server,
+    start_transfer_task, stop_server, ServerState,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,6 +45,9 @@ pub fn run() {
             start_server,
             stop_server,
             send_file,
+            send_files,
+            create_transfer_tasks,
+            start_transfer_task,
             connect_device,
             get_free_port,
             is_update_dismissed,

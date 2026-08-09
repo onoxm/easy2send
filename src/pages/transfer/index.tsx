@@ -12,7 +12,7 @@ import { Back, Receive, Send } from '@icon-park/react'
 import { Event, listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { chainClassNames } from 'ono-react-element'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { EmptyPanel } from './EmptyPanel'
 import { TaskCardList } from './TaskCardList'
@@ -109,11 +109,9 @@ export default () => {
   // 再用 ref 里的"当前 running 计数器 + 并发上限"轮询调度 startTransferTask
   const seedsQueueRef = useRef<TransferTaskSeed[]>([])
   const runningCountRef = useRef(0)
-  const addr = useMemo(
-    () =>
-      connectedDevice ? `${connectedDevice.ip}:${connectedDevice.port}` : '',
-    [connectedDevice]
-  )
+  const addr = connectedDevice
+    ? `${connectedDevice.ip}:${connectedDevice.port}`
+    : ''
 
   // 调度：只要 running < concurrentUploads 且 seedsQueue 有值就启动
   const flushSchedule = () => {
@@ -294,13 +292,14 @@ export default () => {
       })
     }
     const handleRecvComplete = (ev: Event<Record<string, unknown>>) => {
-      const p = ev.payload as { task_id: string; name?: string }
+      const p = ev.payload as { task_id: string }
       if (unmounted) return
+      // 不覆盖 name：后端 complete 事件默认填 "传输完成"，
+      // 会替换掉 start/progress 已设置的真实文件名。
       upsertTask(p.task_id, {
         direction: 'receive',
         status: 'done',
-        percent: 100,
-        ...(p.name !== undefined ? { name: p.name } : {})
+        percent: 100
       })
       //   sendNotification('接收完成')
     }
@@ -374,9 +373,15 @@ export default () => {
             >
               {icon(activeTab === type)}
               <span>{txt}</span>
-              <span className="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
-                {Object.values(tasks).filter(t => t.direction === type).length}
-              </span>
+              {Object.values(tasks).filter(t => t.direction === type).length >
+                0 && (
+                <span className="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
+                  {
+                    Object.values(tasks).filter(t => t.direction === type)
+                      .length
+                  }
+                </span>
+              )}
             </button>
           ))}
         </div>

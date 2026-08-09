@@ -26,11 +26,15 @@ export default () => {
 
   // 对等模式：应用启动即启动 TCP server + 注册 mDNS 服务（port > 0）
   // 所有设备既是发送端也是接收端，可被其他设备发现和连接
+  //
+  // deps 只用 [ready] 布尔值：version 等值会被 useConfig 异步写入，
+  // 若 deps 列各原始值，其变化会触发 cleanup(stop_server) 后因 started.current
+  // 已为 true 而直接 return，导致 server 被停后永不重启。
   const started = useRef(false)
+  const ready = !!(ip && port && savePath && deviceName && version)
+
   useEffect(() => {
-    if (started.current) return
-    const ready = ip && port && savePath && deviceName && version
-    if (!ready) return
+    if (!ready || started.current) return
     started.current = true
 
     let cancelled = false
@@ -72,7 +76,8 @@ export default () => {
       cancelled = true
       invoke('stop_server').catch(() => {})
     }
-  }, [ip, port, savePath, deviceName, version])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 
   // 监听对端握手：收到 incoming-connection → 存入 store → 跳转传输页
   useEffect(() => {
@@ -88,16 +93,17 @@ export default () => {
     }
   }, [navigate])
 
+  useEffect(() => {
+    useStore.setState({ ip, port })
+  }, [ip, port])
+
   // useEffect(() => {
   //   document.documentElement.classList.remove('dark')
   //   document.documentElement.classList.add(theme)
   // }, [theme])
 
   return (
-    <main
-      className="w-screen h-screen flex flex-col"
-      onContextMenu={e => e.preventDefault()}
-    >
+    <main className="w-screen h-screen flex flex-col">
       <Outlet />
       <div className="text-center text-sm text-gray-500 mb-2">
         版本：{version}

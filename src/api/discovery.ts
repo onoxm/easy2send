@@ -30,3 +30,15 @@ export const unregisterService = () => invoke<void>('unregister_service')
  */
 export const connectDevice = (deviceId: string) =>
   invoke<DeviceInfo>('connect_device', { deviceId })
+
+/**
+ * 手动连接指定地址（跳过 mDNS 发现表，直接 TCP 握手）
+ *
+ * mDNS 发现不到对方时（跨网段/VPN/多网卡选错）使用。
+ * 流程：发送 MODE_HANDSHAKE → 成功后用 MODE_PING 拉取对端 deviceName →
+ * 返回构造的 DeviceInfo（ip/port 从 addr 解析，deviceName 来自 PING）
+ *
+ * addr 格式：IP:端口（如 "192.168.1.9:8234"）
+ */
+export const connectByAddr = (addr: string) =>
+  invoke<DeviceInfo>('connect_by_addr', { addr })

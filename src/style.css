@@ -6,6 +6,31 @@
   background-color: #2d3748;
 }
 
+.text {
+  @apply text-sm font-normal select-none;
+}
+
 .little_btn {
   @apply w-8 h-8 p-0.5 border border-solid border-[#e5e7eb] rounded-md flex justify-center items-center hover:bg-gray-200 hover:text-gray-800;
+}
+
+.scroll_vertical {
+  @apply scroll-smooth;
+}
+.scroll_vertical::-webkit-scrollbar {
+  width: 6px;
+  background-color: rgba(0, 0, 0, 0);
+}
+.scroll_vertical::-webkit-scrollbar:hover {
+  background-color: rgba(0, 0, 0, 0);
+}
+.scroll_vertical::-webkit-scrollbar-thumb {
+  background-color: #a6a09b;
+  border-radius: calc(infinity * 4px);
+}
+.scroll_vertical::-webkit-scrollbar-thumb:hover {
+  background-color: #a6a09b;
+}
+.scroll_vertical::-webkit-scrollbar-button {
+  display: none;
 }

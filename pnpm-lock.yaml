@@ -36,8 +36,8 @@ importers:
         specifier: ~2.10.1
         version: 2.10.1
       ono-react-element:
-        specifier: ^0.4.1
-        version: 0.4.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.4.2
+        version: 0.4.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -58,8 +58,8 @@ importers:
         specifier: ^20.5.0
         version: 20.5.3
       '@onoxm/vite-plugin-auto-router':
-        specifier: ^0.8.4
-        version: 0.8.4(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^0.8.6
+        version: 0.8.6(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
@@ -512,11 +512,11 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@onoxm/event@0.4.1':
-    resolution: {integrity: sha512-O3Y56a7tv7wGZX482hpltZlZNa6kD7vwOXNEFxnWIODk1C5+I+FhjeyC1deUctQZaBUeUrWoX/H1a7fp2/n6xQ==}
+  '@onoxm/event@0.4.2':
+    resolution: {integrity: sha512-tWmhgsnVOiRi7hUmwAzMGModes5CGtJK7zutFELd+bYiXgmENdtdLO6PoIUcYDIJAtHZFlBTMTK60t2T9jIuMg==}
 
-  '@onoxm/react-hooks@0.4.1':
-    resolution: {integrity: sha512-IqtJafGfl+u0qq0ngqQ3Dt8p4zT9++zEjPf/R6TYIIt7lRYLMWtX6+PZM7hccRYjn8qr6QuHRWFarWFEL1rO6w==}
+  '@onoxm/react-hooks@0.4.2':
+    resolution: {integrity: sha512-PnqU4n1+Mfvw0FjcnBF1hW2VDmHemSq7Dbw1HgNYCw32tA3pp/g2cxiOOhELpJY1mvWK0S5Rl62tD86p+kICSg==}
     peerDependencies:
       '@types/react': '>=19'
       react: '>=19'
@@ -524,8 +524,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@onoxm/react-tools@0.4.1':
-    resolution: {integrity: sha512-z58tDUhqcHotf7514C+yN/o11LmeTVOZBv6BM9vPxliI/7g34SRrWPU+KFXIbeFeWQz+TRyS2HHP2xD/wEPyNQ==}
+  '@onoxm/react-tools@0.4.2':
+    resolution: {integrity: sha512-iwpxn6/U2TZCC9R+JmfHFtH0zwXcKr6AuMVqcKeHUubyXZJON2ZTWEr0i4XyOUJXIZW2OIAUEbJZdG49jUet8g==}
     peerDependencies:
       '@types/react': '>=19'
       '@types/react-dom': '>=19'
@@ -540,8 +540,11 @@ packages:
   '@onoxm/utils@0.4.1':
     resolution: {integrity: sha512-f7Bp9ol0Mds1vRVFbuFQPVtn4DEZ77sCTCcj/bgygXGxxV7LWdU70zUWg4foEKCxn6tDTO0sYi3zQ27KCunBkA==}
 
-  '@onoxm/vite-plugin-auto-router@0.8.4':
-    resolution: {integrity: sha512-Xj+KPzPQxQYA8o5cndH1zxpWqE42LsVAmbOrvVlw+LCNqe6utXwmCu0Z6qcqov4TkT0bjQkfG8y3XV7e2uhK1Q==}
+  '@onoxm/utils@0.4.2':
+    resolution: {integrity: sha512-hLw5tkv1SmIVgPuuBFBvL1c3zQJHT7UCkUwSt0vK5j+aLu5TqVS6pik76biIHAZR/eSBp3mK6FBrRpLIAh2oQg==}
+
+  '@onoxm/vite-plugin-auto-router@0.8.6':
+    resolution: {integrity: sha512-JwCrwl1+uDTpXyv6/ZQNcTsBBx+/6iEFSLCfGo9I0ANKjV011XHVLTZPFbg/xUQ7bpTqPU7fMw6E7ckoff+cmQ==}
     peerDependencies:
       react-router: '*'
       vue-router: '*'
@@ -1758,8 +1761,8 @@ packages:
     resolution: {integrity: sha512-5NcSkPHhwTVFIQN+TUqXoS5+dlElHXdpAWu9I0HP20YOtIi+aZ0Ct82jdlILDxjLEAWwvm+qj1m6aEtsDVmm6Q==}
     engines: {node: '>=6'}
 
-  ono-react-element@0.4.1:
-    resolution: {integrity: sha512-AL0cHYzqwYCrag+qtNU6EK4Kr36DMsw1N26X6vPvUNN6VliKb3MAzN5KYw++Dt+ToxCUVJXwrWKhvvtVwET6pA==}
+  ono-react-element@0.4.2:
+    resolution: {integrity: sha512-EjCUPgfC/rAzQX5rIbrbk1Y1s/PaaDXrrzBbBXBdoRtMTuatmxrQ3lfwy+WlmmMGWy53vVRGy7k/S0rXRXeRIQ==}
     peerDependencies:
       '@types/react': '>=19'
       '@types/react-dom': '>=19'
@@ -2599,20 +2602,20 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@onoxm/event@0.4.1':
+  '@onoxm/event@0.4.2':
     dependencies:
-      '@onoxm/utils': 0.4.1
+      '@onoxm/utils': 0.4.2
 
-  '@onoxm/react-hooks@0.4.1(@types/react@19.2.17)(react@19.2.8)':
+  '@onoxm/react-hooks@0.4.2(@types/react@19.2.17)(react@19.2.8)':
     dependencies:
-      '@onoxm/utils': 0.4.1
+      '@onoxm/utils': 0.4.2
       react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.17
 
-  '@onoxm/react-tools@0.4.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@onoxm/react-tools@0.4.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@onoxm/utils': 0.4.1
+      '@onoxm/utils': 0.4.2
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
@@ -2621,7 +2624,9 @@ snapshots:
 
   '@onoxm/utils@0.4.1': {}
 
-  '@onoxm/vite-plugin-auto-router@0.8.4(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@onoxm/utils@0.4.2': {}
+
+  '@onoxm/vite-plugin-auto-router@0.8.6(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     optionalDependencies:
       react-router: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
@@ -3679,12 +3684,12 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  ono-react-element@0.4.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  ono-react-element@0.4.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      '@onoxm/event': 0.4.1
-      '@onoxm/react-hooks': 0.4.1(@types/react@19.2.17)(react@19.2.8)
-      '@onoxm/react-tools': 0.4.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@onoxm/utils': 0.4.1
+      '@onoxm/event': 0.4.2
+      '@onoxm/react-hooks': 0.4.2(@types/react@19.2.17)(react@19.2.8)
+      '@onoxm/react-tools': 0.4.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@onoxm/utils': 0.4.2
       '@popperjs/core': 2.11.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)

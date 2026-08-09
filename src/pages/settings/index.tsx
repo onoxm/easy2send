@@ -6,7 +6,7 @@ import { EditTwo, FolderOpen } from '@icon-park/react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { check } from '@tauri-apps/plugin-updater'
-import { Button, OnoSelect, Switch } from 'ono-react-element'
+import { Button, OnoSelect, Switch, toast } from 'ono-react-element'
 import { useState } from 'react'
 import { SettingsBar } from './SettingsBar'
 
@@ -71,11 +71,13 @@ export default () => {
             readOnly
             type="text"
             value={savePath}
-            className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1"
+            className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1 cursor-default"
           />
           {savePathBtnList.map(({ txt, icon, onClick }) => (
             <button
               key={txt}
+              title={txt}
+              aria-label={txt}
               className="little_btn hover:bg-gray-200 hover:text-gray-800"
               onClick={onClick}
             >
@@ -117,7 +119,7 @@ export default () => {
             try {
               await setDeviceName(deviceName)
             } catch (e) {
-              alert(`设备别名修改失败: ${e}`)
+              toast.error(`设备别名修改失败: ${e}`)
             }
           }}
         />
@@ -132,6 +134,7 @@ export default () => {
             id="autoUpdate"
             color={'#22c55e'}
             checked={autoCheckUpdate}
+            aria-label="自动检查更新"
             onChange={bl =>
               useStore.setState(
                 Object.assign(
@@ -142,17 +145,26 @@ export default () => {
             }
           />
           {canUpdate && (
-            <Button loading={downloading} onClick={handleUpdate}>
+            <Button
+              loading={downloading}
+              onClick={handleUpdate}
+              className="ml-auto"
+            >
               更新软件
             </Button>
           )}
         </>
+      ),
+      help: (
+        <span className="text-sm text-gray-500">
+          开启后自动检查新版本；右侧按钮在有可用更新时出现
+        </span>
       )
     }
   ]
 
   return (
-    <div className="w-full flex-1 flex flex-col gap-2 p-3">
+    <div className="w-full flex-1 flex flex-col gap-3 p-3">
       <h1>设置</h1>
       {settingsBarList.map(({ title, help, children }) => (
         <SettingsBar key={title} title={title} help={help}>

@@ -21,7 +21,7 @@ use discovery::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use transfer::{
-    connect_device, create_transfer_tasks, send_file, send_files, start_server,
+    connect_by_addr, connect_device, create_transfer_tasks, send_file, send_files, start_server,
     start_transfer_task, stop_server, ServerState,
 };
 
@@ -49,6 +49,7 @@ pub fn run() {
             create_transfer_tasks,
             start_transfer_task,
             connect_device,
+            connect_by_addr,
             get_free_port,
             is_update_dismissed,
             set_update_dismissed,

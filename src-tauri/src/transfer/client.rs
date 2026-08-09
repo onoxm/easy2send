@@ -1,41 +1,15 @@
 use super::protocol::{
-    tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_BATCH, MODE_FILE, MODE_FILE_TASK,
-    MODE_FOLDER, MODE_FOLDER_TASK, MODE_HANDSHAKE,
+    calc_path_size, collect_entries, emit_progress, new_task_id, should_emit, task_id_hex_to_bytes,
+    tune_socket_buffers, write_string, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_BATCH, MODE_FILE,
+    MODE_FILE_TASK, MODE_FOLDER, MODE_FOLDER_TASK, MODE_HANDSHAKE,
 };
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
-
-/// 生成 16 字节 UUID v4（task_id），输出成 32 位十六进制字符串
-pub fn new_task_id() -> String {
-    let mut bytes = [0u8; 16];
-    // 简单伪随机：用 std::time 纳秒 + RandomState 随机化种子
-    use std::hash::{BuildHasher, Hasher, RandomState};
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let rng1 = RandomState::new();
-    let rng2 = RandomState::new();
-    let mut hasher = rng1.build_hasher();
-    hasher.write_u64(now);
-    hasher.write_usize(&bytes as *const u8 as usize ^ std::process::id() as usize);
-    let a = hasher.finish();
-    let mut hasher2 = rng2.build_hasher();
-    hasher2.write_u64(now);
-    hasher2.write_u64(a);
-    let b = hasher2.finish();
-    // 填入 UUID v4 版本位和变体位
-    bytes[0..8].copy_from_slice(&a.to_be_bytes());
-    bytes[8..16].copy_from_slice(&b.to_be_bytes());
-    bytes[6] = (bytes[6] & 0x0F) | 0x40; // version=4
-    bytes[8] = (bytes[8] & 0x3F) | 0x80; // variant=RFC4122
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
-}
 
 /// 发送入口：单条路径（文件或文件夹，兼容旧版，无 task_id）
 pub(super) async fn run_client(addr: &str, file_path: &str, app: AppHandle) -> Result<()> {
@@ -254,39 +228,6 @@ pub async fn send_handshake(
 
 // ---------- 内部辅助 ----------
 
-fn task_id_hex_to_bytes(hex: &str) -> [u8; 16] {
-    let mut out = [0u8; 16];
-    let h = hex.as_bytes();
-    for i in 0..16 {
-        out[i] = u8::from_str_radix(&String::from_utf8_lossy(&[h[i * 2], h[i * 2 + 1]]), 16)
-            .unwrap_or(0);
-    }
-    out
-}
-
-async fn write_string(stream: &mut BufWriter<TcpStream>, s: &str) -> Result<()> {
-    let len = s.len() as u32;
-    stream.write_all(&len.to_be_bytes()).await?;
-    stream.write_all(s.as_bytes()).await?;
-    Ok(())
-}
-
-async fn calc_path_size(path: &Path) -> Result<u64> {
-    if path.is_file() {
-        Ok(tokio::fs::metadata(path).await?.len())
-    } else {
-        let mut total = 0u64;
-        let mut entries: Vec<(u8, PathBuf)> = Vec::new();
-        collect_entries(path, &mut entries).await?;
-        for (t, p) in &entries {
-            if *t == ENTRY_FILE {
-                total += tokio::fs::metadata(p).await?.len();
-            }
-        }
-        Ok(total)
-    }
-}
-
 async fn write_file_payload_v2(
     stream: &mut BufWriter<TcpStream>,
     path: &Path,
@@ -322,30 +263,19 @@ async fn write_file_payload_v2(
         stream.write_all(&buffer[..n]).await?;
         sent_in_file += n as u64;
 
-        if last_emit.elapsed() >= Duration::from_millis(100) || sent_in_file >= file_size {
-            let percent = if file_size > 0 {
-                (sent_in_file as f64 / file_size as f64) * 100.0
-            } else {
-                100.0
-            };
-            let elapsed = start.elapsed().as_secs_f64();
-            let speed = if elapsed > 0.0 {
-                sent_in_file as f64 / elapsed
-            } else {
-                0.0
-            };
-            let _ = app.emit(
+        if should_emit(last_emit, sent_in_file >= file_size) {
+            let mut extra = serde_json::Map::new();
+            extra.insert("path".into(), path.to_string_lossy().to_string().into());
+            emit_progress(
+                app,
                 "send-progress-v2",
-                serde_json::json!({
-                    "task_id": task_id,
-                    "sent": sent_in_file,
-                    "total": file_size,
-                    "percent": percent,
-                    "speed": speed,
-                    "name": display_name,
-                    "kind": "file",
-                    "path": path.to_string_lossy().to_string(),
-                }),
+                task_id,
+                sent_in_file,
+                file_size,
+                &display_name,
+                "file",
+                start,
+                Some(&extra),
             );
             *last_emit = Instant::now();
         }
@@ -414,30 +344,19 @@ async fn write_folder_payload_v2(
             remaining -= n as u64;
             sent_in_folder += n as u64;
 
-            if last_emit.elapsed() >= Duration::from_millis(100) || sent_in_folder >= own_total {
-                let percent = if own_total > 0 {
-                    (sent_in_folder as f64 / own_total as f64) * 100.0
-                } else {
-                    0.0
-                };
-                let elapsed = start.elapsed().as_secs_f64();
-                let speed = if elapsed > 0.0 {
-                    sent_in_folder as f64 / elapsed
-                } else {
-                    0.0
-                };
-                let _ = app.emit(
+            if should_emit(last_emit, sent_in_folder >= own_total) {
+                let mut extra = serde_json::Map::new();
+                extra.insert("path".into(), root.to_string_lossy().to_string().into());
+                emit_progress(
+                    app,
                     "send-progress-v2",
-                    serde_json::json!({
-                        "task_id": task_id,
-                        "sent": sent_in_folder,
-                        "total": own_total,
-                        "percent": percent,
-                        "speed": speed,
-                        "name": display_name,
-                        "kind": "folder",
-                        "path": root.to_string_lossy().to_string(),
-                    }),
+                    task_id,
+                    sent_in_folder,
+                    own_total,
+                    &display_name,
+                    "folder",
+                    start,
+                    Some(&extra),
                 );
                 *last_emit = Instant::now();
             }
@@ -499,32 +418,21 @@ async fn write_file_payload_batch(
         stream.write_all(&buffer[..n]).await?;
         sent_in_file += n as u64;
 
-        if last_emit.elapsed() >= Duration::from_millis(100) {
+        if should_emit(last_emit, false) {
             let overall_sent = accum_sent + sent_in_file;
-            let percent = if batch_total_size > 0 {
-                (overall_sent as f64 / batch_total_size as f64) * 100.0
-            } else {
-                0.0
-            };
-            let elapsed = start.elapsed().as_secs_f64();
-            let speed = if elapsed > 0.0 {
-                sent_in_file as f64 / elapsed
-            } else {
-                0.0
-            };
-            let _ = app.emit(
+            let mut extra = serde_json::Map::new();
+            extra.insert("entry_index".into(), entry_index.into());
+            extra.insert("entry_count".into(), entry_count.into());
+            emit_progress(
+                app,
                 "send-progress-v2",
-                serde_json::json!({
-                    "task_id": batch_id,
-                    "sent": overall_sent,
-                    "total": batch_total_size,
-                    "percent": percent,
-                    "speed": speed,
-                    "name": display,
-                    "kind": "batch",
-                    "entry_index": entry_index,
-                    "entry_count": entry_count,
-                }),
+                &batch_id,
+                overall_sent,
+                batch_total_size,
+                &display,
+                "batch",
+                start,
+                Some(&extra),
             );
             *last_emit = Instant::now();
         }
@@ -597,58 +505,25 @@ async fn write_folder_payload_batch(
             remaining -= n as u64;
             sent_in_folder += n as u64;
 
-            if last_emit.elapsed() >= Duration::from_millis(100) {
+            if should_emit(last_emit, false) {
                 let overall_sent = accum_sent + sent_in_folder;
-                let percent = if batch_total_size > 0 {
-                    (overall_sent as f64 / batch_total_size as f64) * 100.0
-                } else {
-                    0.0
-                };
-                let elapsed = start.elapsed().as_secs_f64();
-                let speed = if elapsed > 0.0 {
-                    sent_in_folder as f64 / elapsed
-                } else {
-                    0.0
-                };
-                let _ = app.emit(
+                let mut extra = serde_json::Map::new();
+                extra.insert("entry_index".into(), entry_index.into());
+                extra.insert("entry_count".into(), entry_count.into());
+                emit_progress(
+                    app,
                     "send-progress-v2",
-                    serde_json::json!({
-                        "task_id": batch_id,
-                        "sent": overall_sent,
-                        "total": batch_total_size,
-                        "percent": percent,
-                        "speed": speed,
-                        "name": display,
-                        "kind": "batch",
-                        "entry_index": entry_index,
-                        "entry_count": entry_count,
-                    }),
+                    &batch_id,
+                    overall_sent,
+                    batch_total_size,
+                    &display,
+                    "batch",
+                    start,
+                    Some(&extra),
                 );
                 *last_emit = Instant::now();
             }
         }
     }
     Ok(accum_sent + sent_in_folder)
-}
-
-async fn collect_entries(root: &Path, out: &mut Vec<(u8, PathBuf)>) -> Result<()> {
-    if root.is_dir() {
-        out.push((ENTRY_DIR, root.to_path_buf()));
-        let mut rd = tokio::fs::read_dir(root).await?;
-        let mut entries = Vec::new();
-        while let Some(entry) = rd.next_entry().await? {
-            entries.push(entry.path());
-        }
-        entries.sort();
-        for p in entries {
-            if p.is_dir() {
-                Box::pin(collect_entries(&p, out)).await?;
-            } else {
-                out.push((ENTRY_FILE, p.to_path_buf()));
-            }
-        }
-    } else if root.is_file() {
-        out.push((ENTRY_FILE, root.to_path_buf()));
-    }
-    Ok(())
 }

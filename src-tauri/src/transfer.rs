@@ -258,3 +258,84 @@ pub async fn connect_device(
         last_err
     ))
 }
+
+/// 手动连接指定地址（跳过 mDNS 发现表，直接 TCP 握手）
+///
+/// 供前端"手动连接"按钮调用：mDNS 发现不到对方时（跨网段/VPN/多网卡选错），
+/// 用户手动输入 `ip:port` 发起握手。
+///
+/// 流程：发送 MODE_HANDSHAKE → 成功后用 MODE_PING 拉取对端 deviceName →
+/// 构造 DeviceInfo 返回（ip/port 从 addr 解析，deviceName 来自 PING）
+#[tauri::command]
+pub async fn connect_by_addr(
+    addr: String,
+    state: tauri::State<'_, SharedDiscoveryState>,
+) -> Result<DeviceInfo, String> {
+    // 从 discovery state 拿本机设备信息（用于握手）
+    let (self_device_id, self_device_name, server_port, platform, version) = {
+        let s = state.lock().await;
+        let cfg = s
+            .last_config
+            .as_ref()
+            .ok_or("discovery 未启动，无法获取本机信息")?;
+        let did = s.self_device_id.as_ref().ok_or("device_id 未设置")?;
+        (
+            did.clone(),
+            cfg.device_name.clone(),
+            cfg.port,
+            cfg.platform.clone(),
+            cfg.version.clone(),
+        )
+    };
+
+    println!("[connect] 手动连接: {}", addr);
+
+    // 1. 发送握手到目标地址（3s 超时）
+    tokio::time::timeout(
+        Duration::from_secs(3),
+        client::send_handshake(
+            &addr,
+            &self_device_id,
+            &self_device_name,
+            server_port,
+            &platform,
+            &version,
+        ),
+    )
+    .await
+    .map_err(|_| format!("连接超时(3s): {}", addr))?
+    .map_err(|e| format!("握手失败 {}: {}", addr, e))?;
+
+    println!("[connect] 手动握手成功 {}", addr);
+
+    // 2. 解析 addr 为 ip + port
+    let socket_addr = addr
+        .parse::<std::net::SocketAddr>()
+        .map_err(|e| format!("地址格式错误（应为 IP:端口）: {}", e))?;
+    let peer_ip = socket_addr.ip().to_string();
+    let peer_port = socket_addr.port();
+
+    // 3. 用 MODE_PING 拉取对端 deviceName（失败则用占位符）
+    let peer_name = match tokio::time::timeout(
+        Duration::from_secs(3),
+        crate::discovery::health::ping_device(&addr),
+    )
+    .await
+    {
+        Ok(Ok(Some(name))) => name,
+        _ => format!("未知设备({})", peer_ip),
+    };
+
+    // 4. 构造 DeviceInfo 返回
+    Ok(DeviceInfo {
+        device_id: String::new(),
+        device_name: peer_name,
+        ip: peer_ip.clone(),
+        addresses: vec![peer_ip],
+        port: peer_port,
+        platform: String::new(),
+        version: String::new(),
+        https: false,
+        last_seen: crate::discovery::state::current_unix_ms(),
+    })
+}

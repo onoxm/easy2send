@@ -1,45 +1,17 @@
 use super::protocol::{
-    safe_join, tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_BATCH, MODE_FILE,
-    MODE_FILE_TASK, MODE_FOLDER, MODE_FOLDER_TASK, MODE_HANDSHAKE, MODE_PING,
+    bytes_to_task_id_hex, emit_progress, new_task_id, read_string, safe_join, should_emit,
+    tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_BATCH, MODE_FILE, MODE_FILE_TASK,
+    MODE_FOLDER, MODE_FOLDER_TASK, MODE_HANDSHAKE, MODE_PING,
 };
 use crate::discovery::SharedDiscoveryState;
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
-
-/// 生成 32 位十六进制 UUID v4（接收端用 recv_task_id，事件用）
-fn new_task_id() -> String {
-    let mut bytes = [0u8; 16];
-    use std::hash::{BuildHasher, Hasher, RandomState};
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let rng1 = RandomState::new();
-    let rng2 = RandomState::new();
-    let mut hasher = rng1.build_hasher();
-    hasher.write_u64(now);
-    hasher.write_usize(&bytes as *const u8 as usize ^ std::process::id() as usize);
-    let a = hasher.finish();
-    let mut hasher2 = rng2.build_hasher();
-    hasher2.write_u64(now);
-    hasher2.write_u64(a);
-    let b = hasher2.finish();
-    bytes[0..8].copy_from_slice(&a.to_be_bytes());
-    bytes[8..16].copy_from_slice(&b.to_be_bytes());
-    bytes[6] = (bytes[6] & 0x0F) | 0x40;
-    bytes[8] = (bytes[8] & 0x3F) | 0x80;
-    bytes.iter().map(|x| format!("{:02x}", x)).collect()
-}
-
-fn bytes_to_task_id_hex(bytes: &[u8; 16]) -> String {
-    bytes.iter().map(|x| format!("{:02x}", x)).collect()
-}
 
 pub(super) async fn run_server(
     addr: &str,
@@ -199,16 +171,7 @@ async fn receive_handshake(stream: &mut TcpStream, app: &AppHandle) -> Result<()
     Ok(())
 }
 
-async fn read_string(stream: &mut TcpStream) -> Result<String> {
-    let mut len_buf = [0u8; 4];
-    stream.read_exact(&mut len_buf).await?;
-    let len = u32::from_be_bytes(len_buf) as usize;
-    let mut buf = vec![0u8; len];
-    stream.read_exact(&mut buf).await?;
-    Ok(String::from_utf8(buf)?)
-}
-
-// 接收单文件，带 task_id 事件（v2 对象格式）
+// 接收单文件
 async fn receive_file_stream(
     stream: &mut TcpStream,
     app: &AppHandle,
@@ -248,6 +211,11 @@ async fn receive_file_stream(
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut last_emit = Instant::now();
     let start = Instant::now();
+    let kind_str = if kind == TaskKind::File {
+        "file"
+    } else {
+        "folder"
+    };
 
     while received < total_size {
         let to_read = ((total_size - received).min(CHUNK_SIZE as u64)) as usize;
@@ -255,29 +223,17 @@ async fn receive_file_stream(
         file.write_all(&buffer[..to_read]).await?;
         received += to_read as u64;
 
-        if last_emit.elapsed() >= Duration::from_millis(100) || received >= total_size {
-            let percent = if total_size > 0 {
-                (received as f64 / total_size as f64) * 100.0
-            } else {
-                100.0
-            };
-            let elapsed = start.elapsed().as_secs_f64();
-            let speed = if elapsed > 0.0 {
-                received as f64 / elapsed
-            } else {
-                0.0
-            };
-            let _ = app.emit(
+        if should_emit(&last_emit, received >= total_size) {
+            emit_progress(
+                app,
                 "receive-progress-v2",
-                serde_json::json!({
-                    "task_id": task_id,
-                    "sent": received,
-                    "total": total_size,
-                    "percent": percent,
-                    "speed": speed,
-                    "name": filename,
-                    "kind": if kind == TaskKind::File { "file" } else { "folder" },
-                }),
+                task_id,
+                received,
+                total_size,
+                &filename,
+                kind_str,
+                start,
+                None,
             );
             last_emit = Instant::now();
         }
@@ -358,29 +314,18 @@ async fn receive_folder_stream(
                 remaining -= to_read as u64;
                 received += to_read as u64;
 
-                if last_emit.elapsed() >= Duration::from_millis(100) || received >= total_size {
-                    let percent = if total_size > 0 {
-                        (received as f64 / total_size as f64) * 100.0
-                    } else {
-                        0.0
-                    };
-                    let elapsed = start.elapsed().as_secs_f64();
-                    let speed = if elapsed > 0.0 {
-                        received as f64 / elapsed
-                    } else {
-                        0.0
-                    };
-                    let _ = app.emit(
+                if should_emit(&last_emit, received >= total_size) {
+                    let name = first_dir_name.clone().unwrap_or_else(|| "文件夹".into());
+                    emit_progress(
+                        app,
                         "receive-progress-v2",
-                        serde_json::json!({
-                            "task_id": task_id,
-                            "sent": received,
-                            "total": total_size,
-                            "percent": percent,
-                            "speed": speed,
-                            "name": first_dir_name.clone().unwrap_or_else(|| "文件夹".into()),
-                            "kind": "folder",
-                        }),
+                        task_id,
+                        received,
+                        total_size,
+                        &name,
+                        "folder",
+                        start,
+                        None,
                     );
                     last_emit = Instant::now();
                 }
@@ -391,6 +336,7 @@ async fn receive_folder_stream(
         }
     }
     // 末尾再补一次 100% 事件
+    let final_name = first_dir_name.clone().unwrap_or_else(|| "文件夹".into());
     let _ = app.emit(
         "receive-progress-v2",
         serde_json::json!({
@@ -399,7 +345,7 @@ async fn receive_folder_stream(
             "total": total_size,
             "percent": 100.0,
             "speed": 0.0,
-            "name": first_dir_name.clone().unwrap_or_else(|| "文件夹".into()),
+            "name": final_name,
             "kind": "folder",
         }),
     );

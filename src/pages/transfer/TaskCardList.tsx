@@ -1,5 +1,14 @@
 import { ICON_INFO } from '@/common/common'
-import { FolderClose, Picture, Send, Zip } from '@icon-park/react'
+import useStore from '@/store'
+import {
+  FileSuccessOne,
+  FolderClose,
+  FolderOpen,
+  Send,
+  Zip
+} from '@icon-park/react'
+import { invoke } from '@tauri-apps/api/core'
+import { join } from '@tauri-apps/api/path'
 import {
   chainClassNames,
   createDataSource,
@@ -10,13 +19,36 @@ import { ReactNode, useMemo } from 'react'
 import { TaskStatus, TransferTask } from '.'
 
 const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
-  file: <Picture {...ICON_INFO} strokeWidth={2} />,
+  file: <FileSuccessOne {...ICON_INFO} strokeWidth={2} />,
   folder: <FolderClose {...ICON_INFO} strokeWidth={2} />,
   batch: <Zip {...ICON_INFO} strokeWidth={2} />,
   unknown: <Send {...ICON_INFO} strokeWidth={2} />
 }
 
+// 左侧状态 accent 条颜色
+const STATUS_ACCENT: Record<TaskStatus, string> = {
+  queued: 'bg-gray-300',
+  running: 'bg-indigo-500',
+  done: 'bg-green-500',
+  error: 'bg-red-500'
+}
+
+const statusText: Record<TaskStatus, string> = {
+  queued: '排队中',
+  running: '传输中',
+  done: '完成',
+  error: '失败'
+}
+
+const statusColor: Record<TaskStatus, string> = {
+  queued: 'bg-gray-200 text-gray-700',
+  running: 'bg-indigo-100 text-indigo-700',
+  done: 'bg-green-100 text-green-700',
+  error: 'bg-red-100 text-red-700'
+}
+
 const TaskCard = ({ task }: { task: TransferTask }) => {
+  const { direction } = task
   const {
     name,
     total,
@@ -29,6 +61,7 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
     entryIndex,
     entryCount
   } = task
+  const savePath = useStore('savePath')
 
   const eta = useMemo(() => {
     if (status !== 'running' || speed <= 0 || !total) return '--:--'
@@ -43,23 +76,22 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
       : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }, [status, speed, total, sent])
 
-  const statusText: Record<TaskStatus, string> = {
-    queued: '排队中',
-    running: '传输中',
-    done: '完成',
-    error: '失败'
-  }
-
-  const statusColor: Record<TaskStatus, string> = {
-    queued: 'bg-gray-200 text-gray-700',
-    running: 'bg-indigo-100 text-indigo-700',
-    done: 'bg-green-100 text-green-700',
-    error: 'bg-red-100 text-red-700'
-  }
-
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-      <div className="flex items-start gap-3">
+    <div
+      className={chainClassNames(
+        'bg-white rounded-lg shadow-sm border border-gray-200 p-3 relative overflow-hidden',
+        status === 'done' && direction === 'receive'
+          ? 'bg-green-50/30'
+          : status === 'error'
+            ? 'bg-red-50/30'
+            : ''
+      )}
+    >
+      {/* 左侧状态 accent 条 */}
+      <div
+        className={`absolute left-0 top-0 bottom-0 w-1 ${STATUS_ACCENT[status]}`}
+      />
+      <div className="flex items-center gap-3 pl-1">
         <div className="p-2 rounded-lg bg-gray-50 text-gray-600 shrink-0">
           {KIND_ICON[kind]}
         </div>
@@ -115,6 +147,31 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
             </div>
           )}
         </div>
+
+        {status === 'done' && direction === 'receive' && savePath && (
+          <button
+            className="shrink-0 p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
+            title="打开文件"
+            aria-label="打开文件"
+            onClick={async () =>
+              invoke('open_file', { path: await join(savePath, name) })
+            }
+          >
+            <FileSuccessOne {...ICON_INFO} strokeWidth={2} />
+          </button>
+        )}
+
+        {/* 接收端完成态：打开保存目录 */}
+        {status === 'done' && direction === 'receive' && savePath && (
+          <button
+            className="shrink-0 p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
+            title="打开保存目录"
+            aria-label="打开保存目录"
+            onClick={() => invoke('open_file', { path: savePath })}
+          >
+            <FolderOpen {...ICON_INFO} strokeWidth={2} />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -131,12 +188,17 @@ export const TaskCardList = ({
   )
 
   return (
-    <div className="mt-2 p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/40 cursor-pointer h-[calc(100%-40px)]">
+    <div
+      className={chainClassNames(
+        'mt-2 rounded-lg border border-dashed border-gray-300 bg-gray-50/40 h-[calc(100%-40px)]',
+        visibleTasks.length > 0 ? 'cursor-default' : 'cursor-pointer'
+      )}
+    >
       <EstimatedVirtualList
-        wrapperStyle={{ gap: 8 }}
+        wrapperClassName="gap-2 p-3"
+        containerClassName="scroll_vertical"
         dataSource={dataSource}
-        estimatedSize={50}
-        overscanCount={5}
+        overscanCount={3}
       />
     </div>
   )

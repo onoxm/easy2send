@@ -5,17 +5,19 @@
 //!
 //! 子模块：
 //! - `device_id`：本机 UUID v4 持久化
-//! - `state`：运行时状态、设备表、心跳检测、网卡过滤
+//! - `state`：运行时状态、设备表 CRUD、网卡过滤
+//! - `health`：心跳检测 + PING 查询（设备保活与昵称同步）
 //! - `register`：注册 / 注销本机 mDNS 服务
 //! - `browse`：浏览局域网设备 + 事件推送
 
 pub mod browse;
 pub mod device_id;
+pub mod health;
 pub mod register;
 pub mod state;
 
 use crate::common::hostname_ip::lan_ips_csv;
-use crate::discovery::state::health_check;
+use crate::discovery::health::health_check;
 // re-export 供 lib.rs 构造默认状态
 pub use crate::discovery::state::{DiscoveryState, SharedDiscoveryState};
 

@@ -12,7 +12,7 @@ import { join } from '@tauri-apps/api/path'
 import {
   chainClassNames,
   createDataSource,
-  EstimatedVirtualList,
+  FixedVirtualList,
   formatFileSize
 } from 'ono-react-element'
 import { ReactNode, useMemo } from 'react'
@@ -79,7 +79,7 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
   return (
     <div
       className={chainClassNames(
-        'bg-white rounded-lg shadow-sm border border-gray-200 p-3 relative overflow-hidden',
+        'h-[84px] bg-white rounded-lg shadow-sm border border-gray-200 p-3 relative overflow-hidden',
         status === 'done' && direction === 'receive'
           ? 'bg-green-50/30'
           : status === 'error'
@@ -194,11 +194,12 @@ export const TaskCardList = ({
         visibleTasks.length > 0 ? 'cursor-default' : 'cursor-pointer'
       )}
     >
-      <EstimatedVirtualList
+      <FixedVirtualList
         wrapperClassName="gap-2 p-3"
         containerClassName="scroll_vertical"
         dataSource={dataSource}
-        overscanCount={3}
+        overscan="1/3"
+        itemSize={84}
       />
     </div>
   )

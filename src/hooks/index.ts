@@ -1,3 +1,4 @@
+export * from './useCheckUpdate'
 export * from './useDevices'
 export * from './useIP'
 export * from './useNotification'

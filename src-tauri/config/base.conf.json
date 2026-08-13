@@ -2,5 +2,6 @@
   "theme": "light",
   "savePath": "",
   "deviceName": "",
+  "concurrentUploads": 2,
   "autoCheckUpdate": true
 }

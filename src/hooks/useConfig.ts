@@ -9,9 +9,10 @@ export const useConfig = () => {
   const { deviceId, ...config } = useStore([
     'theme',
     'savePath',
-    'autoCheckUpdate',
     'deviceId',
-    'deviceName'
+    'deviceName',
+    'autoCheckUpdate',
+    'concurrentUploads'
   ])
 
   const getVersion = async () => {

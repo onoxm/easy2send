@@ -1,10 +1,17 @@
-import { connectDevice } from '@/api/discovery'
+import { connectByAddr, connectDevice } from '@/api/discovery'
 import { createNewWindow } from '@/api/tauri'
 import { ICON_INFO } from '@/common/common'
 import { useDevices } from '@/hooks'
 import useStore from '@/store'
-import { Apple, Info, SettingTwo, TencentQq, Windows } from '@icon-park/react'
-import { Popover, toast } from 'ono-react-element'
+import {
+  Apple,
+  Down,
+  Info,
+  SettingTwo,
+  TencentQq,
+  Windows
+} from '@icon-park/react'
+import { chainClassNames, Popover, toast } from 'ono-react-element'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -21,8 +28,8 @@ export default () => {
   const { deviceName, ip, port } = useStore(['deviceName', 'ip', 'port'])
   // const { deviceName, theme } = useStore(["deviceName", "theme"]);
   const [connecting, setConnecting] = useState<string | null>(null)
-  // const [manualOpen, setManualOpen] = useState(false);
-  // const [manualAddr, setManualAddr] = useState("");
+  const [manualOpen, setManualOpen] = useState(false)
+  const [manualAddr, setManualAddr] = useState('')
 
   // const [, changeTheme] = useThemePro({
   //   initTheme: theme as 'light' | 'dark',
@@ -50,39 +57,39 @@ export default () => {
   }
 
   // 手动输入 IP:端口 连接（mDNS 发现不到对方时使用）
-  // const handleManualConnect = async () => {
-  //   const addr = manualAddr.trim();
-  //   if (!addr) return;
-  //   setConnecting("manual");
-  //   try {
-  //     const peer = await connectByAddr(addr);
-  //     useStore.setState({ connectedDevice: peer });
-  //     navigate("/transfer");
-  //   } catch (error) {
-  //     toast.error(`连接失败: ${error}`);
-  //   } finally {
-  //     setConnecting(null);
-  //   }
-  // };
+  const handleManualConnect = async () => {
+    const addr = manualAddr.trim()
+    if (!addr) return
+    setConnecting('manual')
+    try {
+      const peer = await connectByAddr(addr)
+      useStore.setState({ connectedDevice: peer })
+      navigate('/transfer')
+    } catch (error) {
+      toast.error(`连接失败: ${error}`)
+    } finally {
+      setConnecting(null)
+    }
+  }
 
   const btnList = [
     {
       text: '刷新',
       onClick: refresh
+    },
+    {
+      text: '手动连接',
+      onClick: () => setManualOpen(v => !v),
+      icon: (
+        <Down
+          theme="outline"
+          size="10"
+          fill="#3b82f6"
+          strokeWidth={3}
+          className={`transition-transform ${manualOpen ? 'rotate-180' : ''}`}
+        />
+      )
     }
-    // {
-    //   text: "手动连接",
-    //   onClick: () => setManualOpen((v) => !v),
-    //   icon: (
-    //     <Down
-    //       theme="outline"
-    //       size="10"
-    //       fill="#3b82f6"
-    //       strokeWidth={3}
-    //       className={`transition-transform ${manualOpen ? "rotate-180" : ""}`}
-    //     />
-    //   ),
-    // },
   ]
 
   return (
@@ -143,39 +150,32 @@ export default () => {
             在线设备（{devices.length}）
           </span>
           <div className="flex items-center gap-3">
-            {btnList.map(({ text, onClick }) => (
+            {btnList.map(({ text, icon, onClick }) => (
               <button
-                className="text-xs text-blue-500 hover:underline cursor-pointer"
-                onClick={onClick}
-              >
-                {text}
-              </button>
-            ))}
-            {/* {btnList.map(({ text, icon, onClick }) => (
-              <button
+                key={text}
                 className={chainClassNames(
-                  "text-xs text-blue-500 hover:underline cursor-pointer",
-                  icon ? "flex items-center gap-0.5" : "",
+                  'text-xs text-blue-500 hover:underline cursor-pointer',
+                  icon ? 'flex items-center gap-0.5' : ''
                 )}
                 onClick={onClick}
               >
                 {icon ? <span>{text}</span> : text}
                 {icon}
               </button>
-            ))} */}
+            ))}
           </div>
         </div>
 
-        {/* {manualOpen && (
+        {manualOpen && (
           <div className="flex gap-2 mb-2">
             <input
               type="text"
               value={manualAddr}
-              onChange={(e) => setManualAddr(e.target.value)}
+              onChange={e => setManualAddr(e.target.value)}
               placeholder="IP:端口 (如 192.168.1.9:8234)"
               className="flex-1 text-sm border border-gray-300 rounded-md px-2 py-1 outline-none focus:border-blue-400"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleManualConnect();
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleManualConnect()
               }}
               disabled={connecting !== null}
             />
@@ -184,10 +184,10 @@ export default () => {
               onClick={handleManualConnect}
               disabled={connecting !== null || !manualAddr.trim()}
             >
-              {connecting === "manual" ? "连接中..." : "连接"}
+              {connecting === 'manual' ? '连接中...' : '连接'}
             </button>
           </div>
-        )} */}
+        )}
 
         {devices.length === 0 ? (
           <div className="text-center text-gray-400 py-8 border border-dashed rounded-md">
@@ -195,25 +195,27 @@ export default () => {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {devices.map(d => (
-              <button
-                key={d.deviceId}
-                className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
-                onClick={() => handleConnect(d.deviceId)}
-                disabled={connecting !== null}
-              >
-                <span className="text-2xl">{platformIcon[d.platform]}</span>
-                <div className="flex-1 text-left">
-                  <div className="font-medium">{d.deviceName}</div>
-                  <div className="text-xs text-gray-500">
-                    {d.ip}:{d.port} · {d.platform} · v{d.version}
+            {devices.map(
+              ({ deviceId, deviceName, ip, port, platform, version }) => (
+                <button
+                  key={deviceId}
+                  className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
+                  onClick={() => handleConnect(deviceId)}
+                  disabled={connecting !== null}
+                >
+                  <span className="text-2xl">{platformIcon[platform]}</span>
+                  <div className="flex-1 text-left">
+                    <div className="font-medium">{deviceName}</div>
+                    <div className="text-xs text-gray-500">
+                      {ip}:{port} · {platform} · v{version}
+                    </div>
                   </div>
-                </div>
-                {connecting === d.deviceId && (
-                  <span className="text-xs text-blue-500">连接中...</span>
-                )}
-              </button>
-            ))}
+                  {connecting === deviceId && (
+                    <span className="text-xs text-blue-500">连接中...</span>
+                  )}
+                </button>
+              )
+            )}
           </div>
         )}
       </div>

@@ -87,85 +87,49 @@ const UpdateDialog = ({ destroy, handleUpdate }: UpdateDialogProps) => {
 
   return (
     <TemplateDialog
+      className="w-[400px] h-[240px] bg-white border border-[#333] rounded-lg relative flex flex-col items-center justify-center"
       dialogClose={() => {
         if (!loading) handleCancel()
       }}
-      style={{
-        width: 400,
-        height: 240,
-        background: 'white',
-        border: '1px solid #333',
-        borderRadius: 8,
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}
+      onContextMenu={e => e.preventDefault()}
     >
       <h1>检测到新版本{version}，是否更新？</h1>
       {downloading && (
-        <div
-          style={{
-            width: 300,
-            margin: '16px 0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              height: 10,
-              background: '#e5e7eb',
-              borderRadius: 5,
-              overflow: 'hidden',
-              position: 'relative'
-            }}
-          >
+        <div className="w-[300px] my-4 flex flex-col items-center gap-[6px]">
+          <div className="w-full h-[10px] bg-[#e5e7eb] rounded-[5px] overflow-hidden relative">
             {indeterminate ? (
               <div
+                className="absolute top-0 w-[40%] h-full bg-[#22c55e] rounded-[5px]"
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: '40%',
-                  background: '#22c55e',
-                  borderRadius: 5,
                   animation: 'update-indeterminate 1s ease-in-out infinite'
                 }}
               />
             ) : (
               <div
+                className="w-[40%] h-full bg-[#22c55e] rounded-[5px]"
                 style={{
                   width: `${percent}%`,
-                  height: '100%',
-                  background: '#22c55e',
-                  borderRadius: 5,
                   transition: 'width 0.2s ease'
                 }}
               />
             )}
           </div>
-          <span style={{ fontSize: 12, color: '#666' }}>{message}</span>
+          <span className="text-[12px] text-[#666]">{message}</span>
         </div>
       )}
-      <div
-        style={{
-          position: 'absolute',
-          right: 16,
-          bottom: 16,
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8
-        }}
-      >
-        <Button type="primary" disabled={loading} onClick={handleCancel}>
+      <div className="absolute right-4 bottom-4 flex justify-end gap-2">
+        <Button
+          className="bg-transparent text-[#333] border border-[#333] btn"
+          disabled={loading}
+          onClick={handleCancel}
+        >
           取消
         </Button>
-        <Button type="success" loading={loading} onClick={handleConfirm}>
+        <Button
+          className="bg-green-500 text-white btn"
+          loading={loading}
+          onClick={handleConfirm}
+        >
           更新
         </Button>
       </div>

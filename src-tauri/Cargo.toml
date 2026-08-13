@@ -1,6 +1,6 @@
 [package]
 name = "easy2send"
-version = "0.2.6"
+version = "0.2.7"
 description = "A Tauri App"
 authors = ["onoxm"]
 edition = "2021"

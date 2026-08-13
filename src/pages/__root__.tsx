@@ -1,6 +1,5 @@
 import { startDiscovery } from '@/api/discovery'
-import { useIP, usePort } from '@/hooks'
-import { useCheckUpdate } from '@/hooks/useCheckUpdate'
+import { useCheckUpdate, useIP, usePort } from '@/hooks'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
 import type { DeviceInfo } from '@/types/discovery'
@@ -103,11 +102,12 @@ export default () => {
   // }, [theme])
 
   return (
-    <main className="w-screen h-screen flex flex-col">
+    <main
+      className="w-screen h-screen flex flex-col"
+      onContextMenu={e => e.preventDefault()}
+    >
       <Outlet />
-      <div className="text-center text-sm text-gray-500 mb-2">
-        版本：{version}
-      </div>
+      <p className="text-center text-sm text-gray-500 mb-2">版本：{version}</p>
     </main>
   )
 }

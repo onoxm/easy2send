@@ -96,6 +96,9 @@ export default () => {
       ),
       children: (
         <OnoSelect
+          selectClassName="border border-transparent"
+          optionsClassName="border border-[#666]"
+          isShowArrow={false}
           defaultValue={concurrentUploads}
           options={concurrentOptions.map(n => ({
             label: n + '',
@@ -130,7 +133,7 @@ export default () => {
       children: (
         <>
           <Switch
-            style={{ width: 40, height: 24 }}
+            style={{ width: 30, height: 18 }}
             id="autoUpdate"
             color={'#22c55e'}
             checked={autoCheckUpdate}
@@ -145,11 +148,7 @@ export default () => {
             }
           />
           {canUpdate && (
-            <Button
-              loading={downloading}
-              onClick={handleUpdate}
-              className="ml-auto"
-            >
+            <Button loading={downloading} onClick={handleUpdate}>
               更新软件
             </Button>
           )}

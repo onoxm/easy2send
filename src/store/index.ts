@@ -36,12 +36,12 @@ const useStore = createStoreHook(
           name: 'ono-storage',
           partialize: state =>
             selectProperties(state, [
-              'version',
               'theme',
+              'version',
               'savePath',
               'canUpdate',
-              'autoCheckUpdate',
               'deviceName',
+              'autoCheckUpdate',
               'concurrentUploads'
             ]),
           storage: createJSONStorage(() => localStorage)

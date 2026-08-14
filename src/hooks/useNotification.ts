@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import {
   isPermissionGranted,
   requestPermission,
@@ -16,10 +17,12 @@ export const useNotification = () => {
         const permission = await requestPermission()
         permissionGranted = permission === 'granted'
         sendNotification({ title, body: message })
+        invoke('play_system_sound')
         return
       }
 
       sendNotification({ title, body: message })
+      invoke('play_system_sound')
     },
     []
   )

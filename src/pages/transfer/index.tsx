@@ -3,9 +3,10 @@ import {
   startTransferTask,
   type TransferTaskSeed
 } from '@/api/fs'
+import { stopWebUpload } from '@/api/webupload'
 import { ICON_INFO } from '@/common/common'
-// import { useNotification, useTauriDrag } from '@/hooks'
-import { useTauriDrag } from '@/hooks'
+import { useNotification, useQuery, useTauriDrag } from '@/hooks'
+import { platformIcon } from '@/pages'
 import useStore from '@/store'
 import { Back, Receive, Send } from '@icon-park/react'
 import { Event, listen } from '@tauri-apps/api/event'
@@ -13,7 +14,6 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { chainClassNames } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { platformIcon } from '@/pages'
 import { EmptyPanel } from './EmptyPanel'
 import { TaskCardList } from './TaskCardList'
 
@@ -47,12 +47,17 @@ export interface TransferTask {
 }
 
 export default () => {
-  const connectedDevice = useStore('connectedDevice')
-  const concurrentUploads = useStore('concurrentUploads')
+  const { connectedDevice, concurrentUploads, ip, port } = useStore([
+    'ip',
+    'port',
+    'connectedDevice',
+    'concurrentUploads'
+  ])
   const navigate = useNavigate()
-  //   const sendNotification = useNotification()
+  const tab = useQuery().tab as TransferType | null
+  const sendNotification = useNotification()
 
-  const [activeTab, setActiveTab] = useState<TransferType>('send')
+  const [activeTab, setActiveTab] = useState<TransferType>(tab || 'send')
 
   const tabList = [
     {
@@ -109,6 +114,11 @@ export default () => {
   // 再用 ref 里的"当前 running 计数器 + 并发上限"轮询调度 startTransferTask
   const seedsQueueRef = useRef<TransferTaskSeed[]>([])
   const runningCountRef = useRef(0)
+  const recvRunningRef = useRef(0)
+  // 接收完成防抖定时器：递减到 0 后延迟触发通知，期间若有新任务到达则重置
+  const recvCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
   const addr = connectedDevice
     ? `${connectedDevice.ip}:${connectedDevice.port}`
     : ''
@@ -230,7 +240,9 @@ export default () => {
       })
       runningCountRef.current = Math.max(0, runningCountRef.current - 1)
       flushSchedule()
-      //   sendNotification('发送完成')
+      if (runningCountRef.current === 0 && seedsQueueRef.current.length === 0) {
+        sendNotification('发送完成')
+      }
     }
     const handleSendError = (ev: Event<Record<string, unknown>>) => {
       const p = ev.payload as { task_id: string; message: string }
@@ -242,6 +254,9 @@ export default () => {
       })
       runningCountRef.current = Math.max(0, runningCountRef.current - 1)
       flushSchedule()
+      if (runningCountRef.current === 0 && seedsQueueRef.current.length === 0) {
+        sendNotification('发送完成')
+      }
     }
 
     const handleRecvStart = (ev: Event<Record<string, unknown>>) => {
@@ -264,6 +279,12 @@ export default () => {
       })
       // 有接收任务时自动切到接收 tab
       setActiveTab('receive')
+      recvRunningRef.current += 1
+      // 新任务到达：取消挂起的完成通知定时器
+      if (recvCompleteTimerRef.current) {
+        clearTimeout(recvCompleteTimerRef.current)
+        recvCompleteTimerRef.current = null
+      }
     }
     const handleRecvProgress = (ev: Event<Record<string, unknown>>) => {
       const p = ev.payload as {
@@ -301,7 +322,21 @@ export default () => {
         status: 'done',
         percent: 100
       })
-      //   sendNotification('接收完成')
+      recvRunningRef.current = Math.max(0, recvRunningRef.current - 1)
+      if (recvRunningRef.current === 0) {
+        // 延迟 200ms 再触发：等待是否还有后续接收任务到达，
+        // 期间若收到新的 receive-start 会清除本定时器，避免误报完成。
+        if (recvCompleteTimerRef.current) {
+          clearTimeout(recvCompleteTimerRef.current)
+        }
+        recvCompleteTimerRef.current = setTimeout(() => {
+          recvCompleteTimerRef.current = null
+          if (unmounted) return
+          if (recvRunningRef.current === 0) {
+            sendNotification('接收完成')
+          }
+        }, 200)
+      }
     }
 
     const proms = [
@@ -315,11 +350,14 @@ export default () => {
 
     return () => {
       unmounted = true
+      if (recvCompleteTimerRef.current) {
+        clearTimeout(recvCompleteTimerRef.current)
+        recvCompleteTimerRef.current = null
+      }
       Promise.all(proms).then(fns => fns.forEach(f => f()))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  //   }, [sendNotification])
+  }, [sendNotification])
 
   // ---------------- 路由守卫 ----------------
   useEffect(() => {
@@ -329,6 +367,10 @@ export default () => {
   if (!connectedDevice) return null
 
   const handleBack = () => {
+    // 手机上传模式：退出传输页时停止 HTTP 服务器
+    if (connectedDevice?.deviceId === 'web-upload') {
+      stopWebUpload().catch(() => {})
+    }
     useStore.setState({ connectedDevice: null })
     navigate('/')
   }
@@ -336,6 +378,10 @@ export default () => {
   const visibleTasks = Object.values(tasks)
     .filter(t => t.direction === activeTab)
     .sort((a, b) => a.createdAt - b.createdAt)
+
+  useEffect(() => {
+    console.log(connectedDevice.deviceId)
+  }, [connectedDevice.deviceId])
 
   return (
     <div className="h-[calc(100%-28px)] flex flex-col p-5 mx-auto w-[92%]">
@@ -348,13 +394,26 @@ export default () => {
           <span>返回首页</span>
         </button>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="text-xl">
-            {platformIcon[connectedDevice.platform]}
-          </span>
-          <span className="truncate max-w-[260px]">
-            {connectedDevice.deviceName} ({connectedDevice.ip}:
-            {connectedDevice.port})
-          </span>
+          {connectedDevice.deviceId === 'web-upload' ? (
+            <>
+              <span className="text-xl">
+                {platformIcon[connectedDevice.platform]}
+              </span>
+              <span className="truncate max-w-[260px]">
+                {connectedDevice.deviceName} (http://{ip}:{port})
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-xl">
+                {platformIcon[connectedDevice.platform]}
+              </span>
+              <span className="truncate max-w-[260px]">
+                {connectedDevice.deviceName} ({connectedDevice.ip}:
+                {connectedDevice.port})
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -364,10 +423,15 @@ export default () => {
             <button
               key={type}
               className={chainClassNames(
-                'flex items-center gap-2 px-4 py-2 -mb-px border-b-2 transition',
+                'items-center gap-2 px-4 py-2 -mb-px border-b-2 transition disabled:cursor-not-allowed',
                 activeTab === type
                   ? 'border-indigo-500 text-indigo-600 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700',
+                type === 'send' &&
+                  activeTab === 'receive' &&
+                  connectedDevice.platform === 'web'
+                  ? 'hidden'
+                  : 'flex'
               )}
               onClick={() => setActiveTab(type)}
             >

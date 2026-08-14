@@ -198,7 +198,7 @@ export const TaskCardList = ({
         wrapperClassName="gap-2 p-3"
         containerClassName="scroll_vertical"
         dataSource={dataSource}
-        overscan="1/3"
+        overscan={5}
         itemSize={84}
       />
     </div>

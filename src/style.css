@@ -18,6 +18,10 @@
   @apply w-8 h-8 p-0.5 border border-solid border-[#e5e7eb] rounded-md flex justify-center items-center hover:bg-gray-200 hover:text-gray-800;
 }
 
+.input {
+  @apply h-8 text bg-[#f5f5f5] p-1 px-2 rounded-md outline-none flex-1 text-sm;
+}
+
 .scroll_vertical {
   @apply scroll-smooth;
 }

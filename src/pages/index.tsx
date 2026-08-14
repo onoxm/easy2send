@@ -1,14 +1,18 @@
 import { connectByAddr, connectDevice } from '@/api/discovery'
 import { createNewWindow } from '@/api/tauri'
+import { createPairToken, startWebUpload, stopWebUpload } from '@/api/webupload'
 import { ICON_INFO } from '@/common/common'
+import { qrUploadDialog } from '@/components'
 import { useDevices } from '@/hooks'
 import useStore from '@/store'
 import {
   Apple,
   Down,
   Info,
+  Phone,
   SettingTwo,
   TencentQq,
+  Sphere,
   Windows
 } from '@icon-park/react'
 import { chainClassNames, Popover, toast } from 'ono-react-element'
@@ -19,17 +23,24 @@ import { useNavigate } from 'react-router'
 export const platformIcon = {
   windows: <Windows {...ICON_INFO} strokeWidth={2} />,
   macos: <Apple {...ICON_INFO} strokeWidth={2} />,
-  linux: <TencentQq {...ICON_INFO} strokeWidth={2} />
+  linux: <TencentQq {...ICON_INFO} strokeWidth={2} />,
+  phone: <Phone {...ICON_INFO} strokeWidth={2} />,
+  web: <Sphere {...ICON_INFO} strokeWidth={2} />
 }
 
 export default () => {
   const { devices, refresh } = useDevices()
-  const navigate = useNavigate()
-  const { deviceName, ip, port } = useStore(['deviceName', 'ip', 'port'])
+  const { deviceName, ip, port, savePath } = useStore([
+    'deviceName',
+    'ip',
+    'port',
+    'savePath'
+  ])
   // const { deviceName, theme } = useStore(["deviceName", "theme"]);
   const [connecting, setConnecting] = useState<string | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [manualAddr, setManualAddr] = useState('')
+  const navigate = useNavigate()
 
   // const [, changeTheme] = useThemePro({
   //   initTheme: theme as 'light' | 'dark',
@@ -72,10 +83,37 @@ export default () => {
     }
   }
 
+  // 手机上传：点击时启动 HTTP 服务器 + 生成 token + 打开二维码弹窗
+  // 服务器在用户扫码配对后保持运行，退出传输页时才停止
+  const handleWebUpload = async () => {
+    try {
+      if (!ip || !savePath) {
+        toast.error('网络或保存路径未就绪，请稍后再试')
+        return
+      }
+      const webPort = await startWebUpload(ip, savePath)
+      const token = await createPairToken()
+      const url = `http://${ip}:${webPort}/?token=${token}`
+      qrUploadDialog({
+        url,
+        // 用户手动关闭弹窗且未配对时才停止服务器；
+        // 配对成功后弹窗自动关闭，服务器保持运行直到退出传输页
+        onClose: () => stopWebUpload().catch(() => {})
+      })
+    } catch (e) {
+      toast.error(`启动手机上传失败: ${e}`)
+      stopWebUpload().catch(() => {})
+    }
+  }
+
   const btnList = [
     {
       text: '刷新',
       onClick: refresh
+    },
+    {
+      text: '扫码连接',
+      onClick: handleWebUpload
     },
     {
       text: '手动连接',
@@ -111,16 +149,18 @@ export default () => {
           className="little_btn"
           onClick={() => {
             createNewWindow('settings', {
+              title: 'Easy2Send设置',
               url: '/settings',
               width: 600,
-              height: 500
+              height: 500,
+              minWidth: 500,
+              minHeight: 400
             })
           }}
         >
           <SettingTwo {...ICON_INFO} />
         </button>
       </div>
-
       {/* 标题 */}
       <div className="text-center">
         <h2 className="text-xl font-bold mb-1">Easy2Send</h2>
@@ -142,7 +182,6 @@ export default () => {
           </Popover>
         </div>
       </div>
-
       {/* 设备列表 */}
       <div className="w-full max-w-md">
         <div className="flex justify-between items-center mb-2">

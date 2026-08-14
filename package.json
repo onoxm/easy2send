@@ -1,6 +1,6 @@
 {
   "name": "easy2send",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "fmt": "oxfmt",
     "preview": "vite preview",
     "tauri": "tauri",
-    "cz": "git-cz"
+    "cz": "git-cz",
+    "minify:web": "node scripts/minify-web.mjs"
   },
   "dependencies": {
     "@icon-park/react": "^1.4.2",
@@ -24,6 +25,7 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "~2.10.1",
     "ono-react-element": "^0.4.4",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^8.3.0",
@@ -32,8 +34,9 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
-    "@onoxm/vite-plugin-auto-router": "^0.8.9",
+    "@onoxm/vite-plugin-auto-router": "^0.8.10",
     "@tauri-apps/cli": "^2.11.4",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@unocss/preset-wind3": "^66.7.2",
@@ -42,7 +45,10 @@
     "@vitejs/plugin-react": "^4.6.0",
     "commitizen": "^4.3.1",
     "cz-git": "^1.12.0",
+    "html-minifier-terser": "^7.2.0",
+    "lightningcss": "^1.33.0",
     "oxfmt": "^0.56.0",
+    "terser": "^5.50.0",
     "typescript": "~5.8.3",
     "unocss": "^66.7.5",
     "vite": "^7.0.4"

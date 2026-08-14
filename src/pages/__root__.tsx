@@ -92,6 +92,30 @@ export default () => {
     }
   }, [navigate])
 
+  // 监听手机扫码配对成功：关闭弹窗 + 构造伪设备 → 跳转传输页（服务器保持运行）
+  useEffect(() => {
+    const unlisten = listen<{ message?: string }>('web-upload-paired', () => {
+      console.log('[root] 手机已配对，跳转传输页')
+      useStore.setState({
+        connectedDevice: {
+          deviceId: 'web-upload',
+          deviceName: '网页上传',
+          ip: '',
+          port: 0,
+          platform: 'web',
+          version: '',
+          https: false,
+          lastSeen: Date.now()
+        }
+      })
+      navigate('/transfer?tab=receive')
+    })
+
+    return () => {
+      unlisten.then(fn => fn())
+    }
+  }, [navigate])
+
   useEffect(() => {
     useStore.setState({ ip, port })
   }, [ip, port])

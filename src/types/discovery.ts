@@ -1,5 +1,5 @@
 /** 平台标识（与后端 TXT 记录 platform 字段对齐） */
-export type Platform = 'windows' | 'macos' | 'linux'
+export type Platform = 'windows' | 'macos' | 'linux' | 'web' | 'phone'
 
 /** 发现模块对外暴露的设备信息（与后端 DeviceInfo 结构对齐） */
 export interface DeviceInfo {

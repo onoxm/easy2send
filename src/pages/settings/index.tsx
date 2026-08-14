@@ -71,14 +71,14 @@ export default () => {
             readOnly
             type="text"
             value={savePath}
-            className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1 cursor-default"
+            className="input cursor-default"
           />
           {savePathBtnList.map(({ txt, icon, onClick }) => (
             <button
               key={txt}
               title={txt}
               aria-label={txt}
-              className="little_btn hover:bg-gray-200 hover:text-gray-800"
+              className="little_btn hover:bg-gray-200 hover:text-gray-800 shrink-0"
               onClick={onClick}
             >
               {icon}
@@ -96,7 +96,7 @@ export default () => {
       ),
       children: (
         <OnoSelect
-          selectClassName="border border-transparent"
+          selectClassName="input border border-transparent"
           optionsClassName="border border-[#666]"
           isShowArrow={false}
           defaultValue={concurrentUploads}
@@ -116,7 +116,7 @@ export default () => {
           value={deviceName}
           maxLength={32}
           placeholder="其他设备看到的名字（1-32 字符，不含点号）"
-          className="text bg-stone-200 p-1 px-2 rounded-md outline-none flex-1"
+          className="input border border-transparent focus:border-[#5644b8]"
           onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={async () => {
             try {
@@ -164,7 +164,7 @@ export default () => {
 
   return (
     <div className="w-full flex-1 flex flex-col gap-3 p-3">
-      <h1>设置</h1>
+      <h1 className="text-2xl font-bold">设置</h1>
       {settingsBarList.map(({ title, help, children }) => (
         <SettingsBar key={title} title={title} help={help}>
           {children}

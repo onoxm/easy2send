@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Easy2Send · 网页上传</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
+        </svg>
+      </div>
+      <h1>Easy2Send</h1>
+      <p class="subtitle">扫码访问，文件直达电脑</p>
+
+      <div id="statusBox" class="status-box">
+        <div id="statusIcon" class="status-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+            />
+          </svg>
+        </div>
+        <p id="statusText" class="status-text">正在配对...</p>
+        <p id="statusHint" class="status-hint">请稍候，正在与电脑建立连接</p>
+      </div>
+
+      <div id="uploadArea" class="upload-area">
+        <input type="file" id="fileInput" multiple style="display: none" />
+        <button
+          class="upload-btn"
+          onclick="document.getElementById('fileInput').click()"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
+          </svg>
+          选择文件
+        </button>
+        <div id="fileList" class="file-list"></div>
+      </div>
+
+      <div class="device-info">
+        <span id="deviceInfo">局域网直连 · 安全传输</span>
+        <div>单文件最大 10GB</div>
+      </div>
+    </div>
+
+    <script src="/script.js"></script>
+  </body>
+</html>

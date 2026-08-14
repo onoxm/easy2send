@@ -23,7 +23,9 @@ const initialState = {
   deviceId: '', // 本机 UUID（启动时由后端读取，不持久化）
   // 对等传输相关（不持久化，每次启动重新分配）
   serverPort: 0, // 本机 TCP 服务端口（应用启动时分配）
-  connectedDevice: null as DeviceInfo | null // 当前连接的对端设备
+  connectedDevice: null as DeviceInfo | null, // 当前连接的对端设备
+  // 手机扫码上传相关（不持久化）
+  webPort: 0 // 手机上传 HTTP 服务器端口（按需启动时分配）
 }
 
 export type StateType = typeof initialState

@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Easy2Send",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "identifier": "com.ono.easy2send",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm minify:web && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm minify:web && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {

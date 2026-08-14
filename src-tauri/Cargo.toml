@@ -1,6 +1,6 @@
 [package]
 name = "easy2send"
-version = "0.2.7"
+version = "0.2.8"
 description = "A Tauri App"
 authors = ["onoxm"]
 edition = "2021"
@@ -27,6 +27,11 @@ tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 local-ip-address = "0.6"
+axum = { version = "0.7", features = ["multipart"] }
+multer = "2"
+http-body-util = "0.1"
+futures-util = "0.3"
+tower-http = { version = "0.5", features = ["limit"] }
 tokio = { version = "1.39", features = ["full"] }
 anyhow = "1" # 简洁的错误处理
 mdns-sd = "0.13" # mDNS 服务发现（纯 Rust，无外部依赖）

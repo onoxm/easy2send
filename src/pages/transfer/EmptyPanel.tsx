@@ -1,7 +1,7 @@
 import { ICON_INFO } from '@/common/common'
 import { Receive, Send } from '@icon-park/react'
 import { chainClassNames } from 'ono-react-element'
-import { TransferType } from '.'
+import { TransferType } from '@/types/transfer'
 
 export const EmptyPanel = ({
   tab,

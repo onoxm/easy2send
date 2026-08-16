@@ -1,13 +1,13 @@
 import { startDiscovery } from '@/api/discovery'
-import { useCheckUpdate, useIP, usePort } from '@/hooks'
+import { useCheckUpdate, useIP, usePort, useTauriListeners } from '@/hooks'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
 import type { DeviceInfo } from '@/types/discovery'
 import { getPlatform } from '@/types/discovery'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { Event } from '@tauri-apps/api/event'
 import { useEffect, useRef } from 'react'
-import { Outlet, useNavigate } from 'react-router'
+import { Outlet, useLocation, useNavigate } from 'react-router'
 
 export default () => {
   useConfig()
@@ -22,6 +22,7 @@ export default () => {
   const ip = useIP()
   const port = usePort(ip)
   const navigate = useNavigate()
+  const location = useLocation()
 
   // 对等模式：应用启动即启动 TCP server + 注册 mDNS 服务（port > 0）
   // 所有设备既是发送端也是接收端，可被其他设备发现和连接
@@ -78,43 +79,32 @@ export default () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
 
-  // 监听对端握手：收到 incoming-connection → 存入 store → 跳转传输页
-  useEffect(() => {
-    const unlisten = listen<DeviceInfo>('incoming-connection', event => {
-      const peer = event.payload
-      console.log('[root] 收到握手:', peer.deviceName)
-      useStore.setState({ connectedDevice: peer })
-      navigate('/transfer')
-    })
-
-    return () => {
-      unlisten.then(fn => fn())
-    }
-  }, [navigate])
-
-  // 监听手机扫码配对成功：关闭弹窗 + 构造伪设备 → 跳转传输页（服务器保持运行）
-  useEffect(() => {
-    const unlisten = listen<{ message?: string }>('web-upload-paired', () => {
-      console.log('[root] 手机已配对，跳转传输页')
-      useStore.setState({
-        connectedDevice: {
-          deviceId: 'web-upload',
-          deviceName: '网页上传',
-          ip: '',
-          port: 0,
-          platform: 'web',
-          version: '',
-          https: false,
-          lastSeen: Date.now()
-        }
-      })
-      navigate('/transfer?tab=receive')
-    })
-
-    return () => {
-      unlisten.then(fn => fn())
-    }
-  }, [navigate])
+  useTauriListeners(
+    {
+      'incoming-connection': (event: Event<DeviceInfo>) => {
+        const peer = event.payload
+        console.log('[root] 收到握手:', peer.deviceName)
+        useStore.setState({ connectedDevice: peer })
+        location.pathname !== '/settings' && navigate('/transfer')
+      },
+      'web-upload-paired': () => {
+        useStore.setState({
+          connectedDevice: {
+            deviceId: 'web-upload',
+            deviceName: '网页上传',
+            ip: '',
+            port: 0,
+            platform: 'web',
+            version: '',
+            https: false,
+            lastSeen: Date.now()
+          }
+        })
+        location.pathname !== '/settings' && navigate('/transfer?tab=receive')
+      }
+    },
+    [navigate, location.pathname]
+  )
 
   useEffect(() => {
     useStore.setState({ ip, port })

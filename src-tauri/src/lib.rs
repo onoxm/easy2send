@@ -1,5 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod common;
+mod discovery;
+mod fs;
+mod transfer;
+mod webupload;
 use common::{
     hostname_ip::get_lan_ip,
     port::get_free_port,
@@ -8,14 +12,11 @@ use common::{
     update_state::{is_update_dismissed, set_update_dismissed},
     version::get_version,
 };
-mod fs;
+use tauri::Manager;
 use fs::{
     open::open_file,
     write::{write_binary_file, write_text_file},
 };
-mod discovery;
-mod transfer;
-mod webupload;
 use discovery::{
     get_device_id, list_devices, set_device_name, start_discovery, stop_discovery,
     unregister_service, DiscoveryState, SharedDiscoveryState,
@@ -37,7 +38,6 @@ pub fn run() {
     let discovery_state: SharedDiscoveryState = Arc::new(Mutex::new(DiscoveryState::default()));
     let webupload_state = Arc::new(Mutex::new(WebUploadServerControl::default()));
     tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(server_state)
         .manage(discovery_state)
         .manage(webupload_state)
@@ -47,6 +47,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_version,
             get_lan_ip,

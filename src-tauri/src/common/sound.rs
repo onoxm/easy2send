@@ -13,9 +13,24 @@ pub fn play_system_sound() {
             MessageBeep(MB_ICONINFORMATION);
         }
     }
-    // 非 Windows 平台暂无实现，静默返回
-    #[cfg(not(target_os = "windows"))]
+
+    // macOS：afplay 后台播放系统自带音效（Glass.aiff 清脆，适合完成提示）
+    // spawn 不阻塞当前线程，fire-and-forget
+    #[cfg(target_os = "macos")]
     {
-        // 预留：后续可用其他平台的系统提示音 API 扩展
+        std::process::Command::new("afplay")
+            .arg("/System/Library/Sounds/Glass.aiff")
+            .spawn()
+            .ok();
+    }
+
+    // Linux：paplay 播放 freedesktop 标准完成音效
+    // 需要 sound-theme-freedesktop 包（多数发行版默认安装），缺失则静默返回
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("paplay")
+            .arg("/usr/share/sounds/freedesktop/stereo/complete.oga")
+            .spawn()
+            .ok();
     }
 }

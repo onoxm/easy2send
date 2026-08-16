@@ -1,6 +1,6 @@
 [package]
 name = "easy2send"
-version = "0.2.8"
+version = "0.2.9"
 description = "A Tauri App"
 authors = ["onoxm"]
 edition = "2021"
@@ -51,3 +51,4 @@ strip = true # Remove debug symbols
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+tauri-plugin-single-instance = "2"

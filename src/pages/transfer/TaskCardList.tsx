@@ -16,7 +16,7 @@ import {
   formatFileSize
 } from 'ono-react-element'
 import { ReactNode, useMemo } from 'react'
-import { TaskStatus, TransferTask } from '.'
+import { TaskStatus, TransferTask } from '@/types/transfer'
 
 const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
   file: <FileSuccessOne {...ICON_INFO} strokeWidth={2} />,

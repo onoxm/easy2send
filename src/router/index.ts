@@ -1,5 +1,4 @@
-export { defineConfig } from './autoRouter.tsx'
 import { createBrowserRouter } from 'react-router'
-import { routes } from './autoRouter.tsx'
+import { routes } from 'virtual:onoxm-auto-router/react'
 
 export const router = createBrowserRouter(routes)

@@ -61,8 +61,8 @@ importers:
         specifier: ^20.5.0
         version: 20.5.3
       '@onoxm/vite-plugin-auto-router':
-        specifier: ^0.8.10
-        version: 0.8.10(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^0.9.0
+        version: 0.9.0(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
@@ -86,7 +86,7 @@ importers:
         version: 66.7.5
       '@vitejs/plugin-react':
         specifier: ^4.6.0
-        version: 4.6.0(supports-color@7.1.0)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0))
+        version: 4.6.0(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0))
       commitizen:
         specifier: ^4.3.1
         version: 4.3.2(@types/node@26.1.1)(typescript@5.8.3)
@@ -558,8 +558,8 @@ packages:
   '@onoxm/utils@0.4.4':
     resolution: {integrity: sha512-mhcww9xnb4bES0ihMBBv2dnevHeIRZMLXs4paXSz3imvlkfC1ycTIIGMek6vyfGpEBDhr9XJ0od3GqdKxhOP+Q==}
 
-  '@onoxm/vite-plugin-auto-router@0.8.10':
-    resolution: {integrity: sha512-pRmVSoyvTebBMlcgrGccgIDK4NPIN/RPBg2O6dOiS/i7HR2nH4ZilCnIpuzMzlq1DwZAFv6Y3S6slBgwZOalbw==}
+  '@onoxm/vite-plugin-auto-router@0.9.0':
+    resolution: {integrity: sha512-uEBSeEcWATagomVjKPItPrRdbX9euHRQsR8t58iboEyXC62xCeqUUMB8JKdYWUIj2mjQjqP8rx+ijDHWjT6NsA==}
     peerDependencies:
       react-router: '*'
       vue-router: '*'
@@ -2411,20 +2411,20 @@ snapshots:
 
   '@babel/compat-data@7.29.7': {}
 
-  '@babel/core@7.29.7(supports-color@7.1.0)':
+  '@babel/core@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.7
       '@babel/helper-compilation-targets': 7.29.7
-      '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.7(supports-color@7.1.0))(supports-color@7.1.0)
+      '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.7)
       '@babel/helpers': 7.29.7
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
-      '@babel/traverse': 7.29.7(supports-color@7.1.0)
+      '@babel/traverse': 7.29.7
       '@babel/types': 7.29.7
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
-      debug: 4.4.3(supports-color@7.1.0)
+      debug: 4.4.3
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -2449,19 +2449,19 @@ snapshots:
 
   '@babel/helper-globals@7.29.7': {}
 
-  '@babel/helper-module-imports@7.29.7(supports-color@7.1.0)':
+  '@babel/helper-module-imports@7.29.7':
     dependencies:
-      '@babel/traverse': 7.29.7(supports-color@7.1.0)
+      '@babel/traverse': 7.29.7
       '@babel/types': 7.29.7
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7(supports-color@7.1.0))(supports-color@7.1.0)':
+  '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@7.1.0)
-      '@babel/helper-module-imports': 7.29.7(supports-color@7.1.0)
+      '@babel/core': 7.29.7
+      '@babel/helper-module-imports': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
-      '@babel/traverse': 7.29.7(supports-color@7.1.0)
+      '@babel/traverse': 7.29.7
     transitivePeerDependencies:
       - supports-color
 
@@ -2482,14 +2482,14 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
-  '@babel/plugin-transform-react-jsx-self@7.29.7(@babel/core@7.29.7(supports-color@7.1.0))':
+  '@babel/plugin-transform-react-jsx-self@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@7.1.0)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
-  '@babel/plugin-transform-react-jsx-source@7.29.7(@babel/core@7.29.7(supports-color@7.1.0))':
+  '@babel/plugin-transform-react-jsx-source@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@7.1.0)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/template@7.29.7':
@@ -2498,7 +2498,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
 
-  '@babel/traverse@7.29.7(supports-color@7.1.0)':
+  '@babel/traverse@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.7
@@ -2506,7 +2506,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
-      debug: 4.4.3(supports-color@7.1.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -2853,7 +2853,7 @@ snapshots:
 
   '@onoxm/utils@0.4.4': {}
 
-  '@onoxm/vite-plugin-auto-router@0.8.10(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@onoxm/vite-plugin-auto-router@0.9.0(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     optionalDependencies:
       react-router: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
@@ -3328,11 +3328,11 @@ snapshots:
       unplugin-utils: 0.3.2
       vite: 7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)
 
-  '@vitejs/plugin-react@4.6.0(supports-color@7.1.0)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0))':
+  '@vitejs/plugin-react@4.6.0(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0))':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@7.1.0)
-      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7(supports-color@7.1.0))
-      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7(supports-color@7.1.0))
+      '@babel/core': 7.29.7
+      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
+      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
       '@rolldown/pluginutils': 1.0.0-beta.19
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
@@ -3585,11 +3585,9 @@ snapshots:
 
   cz-git@1.13.1: {}
 
-  debug@4.4.3(supports-color@7.1.0):
+  debug@4.4.3:
     dependencies:
       ms: 2.1.3
-    optionalDependencies:
-      supports-color: 7.1.0
 
   decamelize@1.2.0: {}
 

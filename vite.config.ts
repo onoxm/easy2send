@@ -1,11 +1,7 @@
 import autoRouter from '@onoxm/vite-plugin-auto-router'
 import react from '@vitejs/plugin-react'
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 import Unocss from 'unocss/vite'
 import { defineConfig } from 'vite'
-
-const execAsync = promisify(exec)
 
 const host = process.env.TAURI_DEV_HOST
 
@@ -16,16 +12,7 @@ export default defineConfig(async () => ({
     Unocss(),
     autoRouter({
       lazy: false,
-      onGenerated: filePaths => {
-        for (const filePath of filePaths) {
-          try {
-            execAsync(`npx oxfmt "${filePath}"`)
-            console.log(`Formatted: ${filePath}`)
-          } catch (error) {
-            console.warn(`Failed to format: ${filePath}`)
-          }
-        }
-      }
+      virtualModule: true
     })
   ],
 

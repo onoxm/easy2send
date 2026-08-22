@@ -12,7 +12,6 @@ use common::{
     update_state::{is_update_dismissed, set_update_dismissed},
     version::get_version,
 };
-use tauri::Manager;
 use fs::{
     open::open_file,
     write::{write_binary_file, write_text_file},

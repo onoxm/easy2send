@@ -34,7 +34,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
-    "@onoxm/vite-plugin-auto-router": "^0.8.10",
+    "@onoxm/vite-plugin-auto-router": "^0.9.0",
     "@tauri-apps/cli": "^2.11.4",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",

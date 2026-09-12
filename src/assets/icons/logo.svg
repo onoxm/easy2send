@@ -1,0 +1,11 @@
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Easy2Send</title>
+  <defs>
+    <linearGradient id="e2s-logo" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6C78EA"/>
+      <stop offset="1" stop-color="#4A55D6"/>
+    </linearGradient>
+  </defs>
+  <rect width="28" height="28" rx="9" fill="url(#e2s-logo)"/>
+  <path d="M9.6 18.4L18.4 9.6M18.4 9.6H13.6M18.4 9.6V14.4" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

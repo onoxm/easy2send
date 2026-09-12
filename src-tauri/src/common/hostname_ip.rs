@@ -72,11 +72,11 @@ fn is_physical_interface(name: &str) -> bool {
     let lower = name.to_lowercase();
     const VIRTUAL_KEYWORDS: [&str; 9] = [
         "vmware",
-        "vethernet",   // Hyper-V vEthernet (Default Switch / WSL)
+        "vethernet", // Hyper-V vEthernet (Default Switch / WSL)
         "virtualbox",
         "wsl",
         "docker",
-        "tap",          // 网易 UU TAP / OpenVPN TAP
+        "tap", // 网易 UU TAP / OpenVPN TAP
         "isatap",
         "teredo",
         "loopback pseudo",

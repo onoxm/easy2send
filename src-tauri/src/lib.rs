@@ -6,19 +6,20 @@ mod transfer;
 mod webupload;
 use common::{
     hostname_ip::get_lan_ip,
+    notify::send_notification,
     port::get_free_port,
     sound::play_system_sound,
     tray::create_tray,
     update_state::{is_update_dismissed, set_update_dismissed},
     version::get_version,
 };
-use fs::{
-    open::open_file,
-    write::{write_binary_file, write_text_file},
-};
 use discovery::{
     get_device_id, list_devices, set_device_name, start_discovery, stop_discovery,
     unregister_service, DiscoveryState, SharedDiscoveryState,
+};
+use fs::{
+    open::open_file,
+    write::{write_binary_file, write_text_file},
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -62,6 +63,8 @@ pub fn run() {
             is_update_dismissed,
             set_update_dismissed,
             play_system_sound,
+            // 系统通知（点击后把主窗口拉回前台）
+            send_notification,
             write_binary_file,
             write_text_file,
             open_file,

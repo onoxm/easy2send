@@ -11,15 +11,15 @@ import {
   Info,
   Phone,
   SettingTwo,
-  TencentQq,
   Sphere,
+  TencentQq,
   Windows
 } from '@icon-park/react'
 import { chainClassNames, Popover, toast } from 'ono-react-element'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
-/** 平台对应的展示图标（emoji 简化版） */
+/** 平台对应的展示图标（windows 已迁到 Tabler，其余四项待迁移） */
 export const platformIcon = {
   windows: <Windows {...ICON_INFO} strokeWidth={2} />,
   macos: <Apple {...ICON_INFO} strokeWidth={2} />,
@@ -27,6 +27,14 @@ export const platformIcon = {
   phone: <Phone {...ICON_INFO} strokeWidth={2} />,
   web: <Sphere {...ICON_INFO} strokeWidth={2} />
 }
+
+// export const platformIcon = {
+//   windows: <IconBrandWindows {...TABLER_ICON_INFO} />,
+//   macos: <IconBrandApple {...TABLER_ICON_INFO} />,
+//   linux: <TencentQq {...ICON_INFO} strokeWidth={2} />,
+//   phone: <IconDeviceMobile {...TABLER_ICON_INFO} />,
+//   web: <IconWorld {...TABLER_ICON_INFO} />,
+// };
 
 export default () => {
   const { devices, refresh } = useDevices()
@@ -144,7 +152,6 @@ export default () => {
           >
             {changeThemeIcon()}
           </button> */}
-
         <button
           className="little_btn"
           onClick={() => {
@@ -160,7 +167,11 @@ export default () => {
         >
           <SettingTwo {...ICON_INFO} />
         </button>
+        {/* <Link to="/settings" className="little_btn">
+          <SettingTwo {...ICON_INFO} />
+        </Link> */}
       </div>
+
       {/* 标题 */}
       <div className="text-center">
         <h2 className="text-xl font-bold mb-1">Easy2Send</h2>

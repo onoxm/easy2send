@@ -1,2 +1,2 @@
-pub mod write;
 pub mod open;
+pub mod write;

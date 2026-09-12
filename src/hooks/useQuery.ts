@@ -1,8 +1,7 @@
-import { useLocation } from 'react-router'
+import { useSearchParams } from 'react-router'
 
 export const useQuery = () => {
-  const location = useLocation()
-  const searchParams = new URLSearchParams(location.search)
+  const [searchParams] = useSearchParams()
 
   const query: { [key: string]: string } = {}
   for (let [key, value] of searchParams.entries()) query[key] = value

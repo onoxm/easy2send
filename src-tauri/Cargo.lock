@@ -978,7 +978,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy2send"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -987,6 +987,7 @@ dependencies = [
  "local-ip-address",
  "mdns-sd",
  "multer 2.1.0",
+ "notify-rust",
  "serde",
  "serde_json",
  "socket2 0.5.10",

@@ -15,9 +15,7 @@ pub fn open_file(path: String) {
 
     let result = match (platform, is_dir) {
         ("windows", true) => Command::new("explorer").arg(&path).spawn(),
-        ("windows", false) => Command::new("cmd")
-            .args(["/c", "start", "", &path])
-            .spawn(),
+        ("windows", false) => Command::new("cmd").args(["/c", "start", "", &path]).spawn(),
         ("macos", _) => Command::new("open").arg(&path).spawn(),
         ("linux", _) => Command::new("xdg-open").arg(&path).spawn(),
         _ => {

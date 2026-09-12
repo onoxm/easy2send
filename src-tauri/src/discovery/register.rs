@@ -32,6 +32,13 @@ pub fn build_service_info(
         ("https", "false"),
     ];
 
-    ServiceInfo::new(SERVICE_TYPE, &instance, &host_name, ip, port, &properties[..])
-        .map_err(|e| anyhow!("构建 ServiceInfo 失败: {}", e))
+    ServiceInfo::new(
+        SERVICE_TYPE,
+        &instance,
+        &host_name,
+        ip,
+        port,
+        &properties[..],
+    )
+    .map_err(|e| anyhow!("构建 ServiceInfo 失败: {}", e))
 }

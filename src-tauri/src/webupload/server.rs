@@ -81,18 +81,12 @@ pub(super) async fn run_server(
 
 /// GET / —— 返回内嵌网页
 async fn index_handler() -> impl IntoResponse {
-    (
-        [("content-type", "text/html; charset=utf-8")],
-        INDEX_HTML,
-    )
+    ([("content-type", "text/html; charset=utf-8")], INDEX_HTML)
 }
 
 /// GET /style.css —— 返回内嵌样式表
 async fn css_handler() -> impl IntoResponse {
-    (
-        [("content-type", "text/css; charset=utf-8")],
-        STYLE_CSS,
-    )
+    ([("content-type", "text/css; charset=utf-8")], STYLE_CSS)
 }
 
 /// GET /script.js —— 返回内嵌脚本
@@ -119,11 +113,7 @@ async fn pair_handler(
 ) -> impl IntoResponse {
     let valid = state.validate_and_consume_pair_token(&req.token).await;
     if !valid {
-        return (
-            StatusCode::UNAUTHORIZED,
-            "无效或已过期的配对 token",
-        )
-            .into_response();
+        return (StatusCode::UNAUTHORIZED, "无效或已过期的配对 token").into_response();
     }
     let session = state.create_session().await;
 
@@ -198,7 +188,8 @@ async fn upload_handler(
         }
     };
     let stream = BodyStream::new(body).map(|result| {
-        let data: Result<axum::body::Bytes, Box<dyn std::error::Error + Send + Sync>> = match result {
+        let data: Result<axum::body::Bytes, Box<dyn std::error::Error + Send + Sync>> = match result
+        {
             Ok(frame) => match frame.into_data() {
                 Ok(data) => Ok(data),
                 Err(_) => Err(Box::new(std::io::Error::new(
@@ -225,28 +216,17 @@ async fn upload_handler(
         }
         Ok(None) => {
             println!("[web-upload] 拒绝：未找到文件字段");
-            return (
-                StatusCode::BAD_REQUEST,
-                "未找到文件字段",
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, "未找到文件字段").into_response();
         }
     };
-    let filename = field
-        .file_name()
-        .unwrap_or("unknown")
-        .to_string();
+    let filename = field.file_name().unwrap_or("unknown").to_string();
     println!("[web-upload] 开始接收文件: {}", filename);
 
     // 5. 安全拼接路径 + 创建文件
     let file_path = match safe_join(&state.save_dir, &filename) {
         Ok(p) => p,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                format!("非法文件名: {}", e),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, format!("非法文件名: {}", e)).into_response();
         }
     };
     if let Some(parent) = file_path.parent() {
@@ -343,6 +323,9 @@ async fn upload_handler(
         }),
     );
 
-    println!("[web-upload] 文件接收完成: {} ({} 字节)", filename, received);
+    println!(
+        "[web-upload] 文件接收完成: {} ({} 字节)",
+        filename, received
+    );
     (StatusCode::OK, "上传成功").into_response()
 }

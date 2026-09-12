@@ -4,6 +4,8 @@ use tauri::{
     App, Manager,
 };
 
+use super::main_window::show_main_window;
+
 pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     TrayIconBuilder::new()
         .menu(&Menu::with_items(
@@ -20,13 +22,8 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                 button: MouseButton::Left,
                 ..
             } => {
-                // 在这个例子中，当点击托盘图标时，将展示并聚焦于主窗口
-                let app = tray.app_handle();
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                // 当双击托盘图标时，将展示并聚焦于主窗口
+                show_main_window(tray.app_handle());
             }
             _ => {
                 tray.set_show_menu_on_left_click(false).unwrap();
@@ -34,11 +31,7 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         })
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                show_main_window(app);
             }
             "hide" => {
                 if let Some(window) = app.get_webview_window("main") {

@@ -3,11 +3,9 @@ import { updateDialog } from '@/components'
 import useStore from '@/store'
 import { check } from '@tauri-apps/plugin-updater'
 import { useEffect } from 'react'
-import { useLocation } from 'react-router'
 
 export const useCheckUpdate = () => {
   const autoCheckUpdate = useStore('autoCheckUpdate')
-  const location = useLocation()
 
   useEffect(() => {
     async function checkForUpdates() {
@@ -30,6 +28,6 @@ export const useCheckUpdate = () => {
       }
     }
 
-    if (autoCheckUpdate && location.pathname !== 'settings') checkForUpdates()
-  }, [autoCheckUpdate, location.pathname])
+    if (autoCheckUpdate) checkForUpdates()
+  }, [autoCheckUpdate])
 }

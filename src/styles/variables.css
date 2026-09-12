@@ -1,0 +1,99 @@
+/* ------------------------------------------------------------------
+ * Easy2Send Design Tokens
+ * 由 Ardot 设计稿「Easy2Send UI Refresh」的变量集导出并规范化。
+ * 设计稿 file: 724674341121015 · 变量集: Easy2Send (3:2)
+ *
+ * 暗色选择器用 :root.dark，与 global.css 的切主题约定保持一致。
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* 品牌色 */
+  --color-brand-50: #f2f5ff;
+  --color-brand-100: #e3e8fc;
+  --color-brand-200: #c9cff7;
+  --color-brand-500: #5c66e3;
+  --color-brand-600: #4a54d6;
+  --color-brand-700: #3d47b5;
+  --color-on-brand: #ffffff;
+
+  /* 中性色 · 文字 */
+  --color-ink-900: #171a21;
+  --color-ink-700: #363b47;
+  --color-ink-600: #4f5463;
+  --color-ink-500: #6b7385;
+  --color-ink-400: #99a1b0;
+  --color-ink-300: #c2c7d4;
+
+  /* 中性色 · 描边 */
+  --color-line-200: #dee3ed;
+  --color-line-100: #edf0f5;
+
+  /* 中性色 · 背景 */
+  --color-surface-base: #ffffff;
+  --color-surface-muted: #f7fafc;
+  --color-canvas: #f2f5fa;
+
+  /* 语义色 */
+  --color-success-600: #14a34a;
+  --color-success-100: #e5f5ed;
+  --color-danger-600: #d92e21;
+  --color-danger-100: #fcedeb;
+  --color-warn-600: #b54708;
+  --color-warn-100: #fcf2e8;
+
+  /* 圆角 · 命名刻意避开 sm/md/lg：presetWind4 的 preflight 也声明了
+   * --radius-md/.375rem、--radius-lg/.5rem，且它在产物中位于本文件之后，
+   * 同权重下会覆盖这里。带语义前缀可彻底隔离两套体系。 */
+  --radius-chip: 6px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  /* 字阶 · 对应设计规范「02 字体」五级
+   * 经 uno.config.ts 的 theme.text 暴露为 text-title / text-section /
+   * text-card / text-body / text-caption（仅含 font-size 与 line-height，
+   * 字重需另外叠加 font-{weight}）。 */
+  --font-size-title: 20px;
+  --font-size-section: 15px;
+  --font-size-card: 13px;
+  --font-size-body: 12px;
+  --font-size-caption: 11px;
+}
+
+:root.dark {
+  /* 品牌色 */
+  --color-brand-50: #151a2c;
+  --color-brand-100: #1d2440;
+  --color-brand-200: #2d3663;
+  --color-brand-500: #5c66e3;
+  --color-brand-600: #8b93f4;
+  --color-brand-700: #9ba3f6;
+  --color-on-brand: #ffffff;
+
+  /* 中性色 · 文字 */
+  --color-ink-900: #e9edf5;
+  --color-ink-700: #c5ccda;
+  --color-ink-600: #a8b0c2;
+  --color-ink-500: #98a1b4;
+  --color-ink-400: #7a8395;
+  --color-ink-300: #5a6374;
+
+  /* 中性色 · 描边 */
+  --color-line-200: #333b47;
+  --color-line-100: #1f242e;
+
+  /* 中性色 · 背景 */
+  --color-surface-base: #262d38;
+  --color-surface-muted: #151a21;
+  --color-canvas: #0f1218;
+
+  /* 语义色 */
+  --color-success-600: #35c077;
+  --color-success-100: #10251a;
+  --color-danger-600: #f0665a;
+  --color-danger-100: #2c1512;
+  --color-warn-600: #e8933a;
+  --color-warn-100: #2b1e0d;
+
+  /* 圆角与主题无关，此处不重复声明 */
+}

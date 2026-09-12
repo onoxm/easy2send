@@ -7,7 +7,7 @@ import { getPlatform } from '@/types/discovery'
 import { invoke } from '@tauri-apps/api/core'
 import { Event } from '@tauri-apps/api/event'
 import { useEffect, useRef } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+import { Outlet, useNavigate } from 'react-router'
 
 export default () => {
   useConfig()
@@ -22,7 +22,6 @@ export default () => {
   const ip = useIP()
   const port = usePort(ip)
   const navigate = useNavigate()
-  const location = useLocation()
 
   // 对等模式：应用启动即启动 TCP server + 注册 mDNS 服务（port > 0）
   // 所有设备既是发送端也是接收端，可被其他设备发现和连接
@@ -85,7 +84,7 @@ export default () => {
         const peer = event.payload
         console.log('[root] 收到握手:', peer.deviceName)
         useStore.setState({ connectedDevice: peer })
-        location.pathname !== '/settings' && navigate('/transfer')
+        navigate('/transfer')
       },
       'web-upload-paired': () => {
         useStore.setState({
@@ -100,10 +99,10 @@ export default () => {
             lastSeen: Date.now()
           }
         })
-        location.pathname !== '/settings' && navigate('/transfer?tab=receive')
+        navigate('/transfer?tab=receive')
       }
     },
-    [navigate, location.pathname]
+    [navigate]
   )
 
   useEffect(() => {
@@ -116,12 +115,8 @@ export default () => {
   // }, [theme])
 
   return (
-    <main
-      className="w-screen h-screen flex flex-col"
-      onContextMenu={e => e.preventDefault()}
-    >
+    <main className="w-screen h-screen" onContextMenu={e => e.preventDefault()}>
       <Outlet />
-      <p className="text-center text-sm text-gray-500 mb-2">版本：{version}</p>
     </main>
   )
 }

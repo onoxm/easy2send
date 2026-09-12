@@ -3,11 +3,13 @@ import { windowBasicOperation } from '@/api/tauri'
 import { ICON_INFO } from '@/common/common'
 import useStore from '@/store'
 import { EditTwo, FolderOpen } from '@icon-park/react'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { check } from '@tauri-apps/plugin-updater'
 import { Button, OnoSelect, Switch, toast } from 'ono-react-element'
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { SettingsBar } from './SettingsBar'
 
 export default () => {
@@ -16,15 +18,21 @@ export default () => {
     autoCheckUpdate,
     canUpdate,
     deviceName,
-    concurrentUploads
+    concurrentUploads,
+    version
   } = useStore([
     'savePath',
     'canUpdate',
     'autoCheckUpdate',
     'deviceName',
-    'concurrentUploads'
+    'concurrentUploads',
+    'version'
   ])
   const [downloading, setLoading] = useState(false)
+  const navigate = useNavigate()
+
+  // 设置页与首页共用同一个窗口，路由切换即返回，需要一个显式的返回入口
+  const handleBack = () => navigate('/')
 
   const savePathBtnList = [
     {
@@ -116,7 +124,7 @@ export default () => {
           value={deviceName}
           maxLength={32}
           placeholder="其他设备看到的名字（1-32 字符，不含点号）"
-          className="input border border-transparent focus:border-[#5644b8]"
+          className="input border border-transparent focus:border-[#5C66E3]"
           onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={async () => {
             try {
@@ -164,7 +172,20 @@ export default () => {
 
   return (
     <div className="w-full flex-1 flex flex-col gap-3 p-3">
-      <h1 className="text-2xl font-bold">设置</h1>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 h-8 px-2.5 border border-solid border-[#DEE3ED] bg-white rounded-[10px] text-[#4F5463] hover:bg-[#F7FAFC] shrink-0"
+          onClick={handleBack}
+        >
+          <IconArrowLeft size={14} stroke={1.6} />
+          <span className="text-xs font-medium">返回</span>
+        </button>
+        <h1 className="flex-1 text-2xl font-bold">设置</h1>
+        <span className="shrink-0 h-6 flex items-center px-2.5 border border-solid border-[#DEE3ED] bg-white rounded-[6px] text-[11px] font-medium text-[#6B7385]">
+          v{version}
+        </span>
+      </div>
       {settingsBarList.map(({ title, help, children }) => (
         <SettingsBar key={title} title={title} help={help}>
           {children}

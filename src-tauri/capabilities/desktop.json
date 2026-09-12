@@ -6,7 +6,6 @@
     "updater:default",
     "updater:allow-check",
     "updater:allow-download",
-    "updater:allow-install",
-    "core:webview:allow-create-webview-window"
+    "updater:allow-install"
   ]
 }

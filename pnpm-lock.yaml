@@ -41,6 +41,12 @@ importers:
       ono-react-element:
         specifier: ^0.4.4
         version: 0.4.4(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      overlayscrollbars:
+        specifier: ^2.16.0
+        version: 2.16.0
+      overlayscrollbars-react:
+        specifier: ^0.5.6
+        version: 0.5.6(overlayscrollbars@2.16.0)(react@19.2.8)
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -67,8 +73,8 @@ importers:
         specifier: ^20.5.0
         version: 20.5.3
       '@onoxm/vite-plugin-auto-router':
-        specifier: ^0.9.7
-        version: 0.9.7(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^0.10.0
+        version: 0.10.0(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
@@ -81,7 +87,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.1.6
         version: 19.2.4(@types/react@19.2.17)
-      '@unocss/preset-wind3':
+      '@unocss/preset-wind4':
         specifier: ^66.7.2
         version: 66.7.5
       '@unocss/reset':
@@ -651,8 +657,8 @@ packages:
   '@onoxm/utils@0.4.4':
     resolution: {integrity: sha512-mhcww9xnb4bES0ihMBBv2dnevHeIRZMLXs4paXSz3imvlkfC1ycTIIGMek6vyfGpEBDhr9XJ0od3GqdKxhOP+Q==}
 
-  '@onoxm/vite-plugin-auto-router@0.9.7':
-    resolution: {integrity: sha512-iM+om+X3yO4d/Oe1wKbpSRTNdIDsMaAuf6YGeYxv/nnvKjW0lkUEbI2N6GCVvgzXOCFzqXjXXuer4mGLvibfKw==}
+  '@onoxm/vite-plugin-auto-router@0.10.0':
+    resolution: {integrity: sha512-2rs8u+gO3lJt+JYsDiGVtuOOyjggXWYt8wx8mlKG0IXZBR4ZmOztkj86WP3FThaWgiySNvwA6SX6cJgqUH3IpQ==}
     peerDependencies:
       react-router: '*'
       vue-router: '*'
@@ -2068,6 +2074,15 @@ packages:
     resolution: {integrity: sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ==}
     engines: {node: '>=10'}
 
+  overlayscrollbars-react@0.5.6:
+    resolution: {integrity: sha512-E5To04bL5brn9GVCZ36SnfGanxa2I2MDkWoa4Cjo5wol7l+diAgi4DBc983V7l2nOk/OLJ6Feg4kySspQEGDBw==}
+    peerDependencies:
+      overlayscrollbars: ^2.0.0
+      react: '>=16.8.0'
+
+  overlayscrollbars@2.16.0:
+    resolution: {integrity: sha512-N03oje/q7j93D0aLZtoCdsDSYLmhheSsv8H7oSLE7HhdV9P/bmCURtLV/KbPye7P/bpfyt/obSfDpGUYoJ0OWg==}
+
   oxc-parser@0.131.0:
     resolution: {integrity: sha512-SJ3/7ZPbgie8dr5Z9BI/M51zZbpXba+hRSG0MDzVwMW5CRQg2fjYE0jHGlLX4eeiibGgC/mzoDFKSDHwVZEHRQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -3145,7 +3160,7 @@ snapshots:
 
   '@onoxm/utils@0.4.4': {}
 
-  '@onoxm/vite-plugin-auto-router@0.9.7(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@onoxm/vite-plugin-auto-router@0.10.0(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     optionalDependencies:
       react-router: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
@@ -4386,6 +4401,13 @@ snapshots:
       log-symbols: 4.1.0
       strip-ansi: 6.0.0
       wcwidth: 1.0.1
+
+  overlayscrollbars-react@0.5.6(overlayscrollbars@2.16.0)(react@19.2.8):
+    dependencies:
+      overlayscrollbars: 2.16.0
+      react: 19.2.8
+
+  overlayscrollbars@2.16.0: {}
 
   oxc-parser@0.131.0:
     dependencies:

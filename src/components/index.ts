@@ -1,4 +1,6 @@
 export * from './icons'
 export * from './Layout'
+export * from './ManualLinkDialog'
+export * from './PlatformIcon'
 export * from './QrUploadDialog'
 export * from './UpdateDialog'

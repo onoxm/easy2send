@@ -1,28 +1,26 @@
 import { connectByAddr, connectDevice } from '@/api/discovery'
 import { createPairToken, startWebUpload, stopWebUpload } from '@/api/webupload'
-import { ICON_INFO, TABLER_ICON_INFO } from '@/common/common'
-import { Layout, Linux, qrUploadDialog } from '@/components'
+import {
+  Layout,
+  manualLinkDialog,
+  PlatformIcon,
+  qrUploadDialog
+} from '@/components'
 import { useDevices } from '@/hooks'
 import useStore from '@/store'
-import { Down, Info, SettingTwo } from '@icon-park/react'
 import {
-  IconBrandAppleFilled,
-  IconBrandWindows,
-  IconDeviceMobile,
-  IconWorld
+  IconChevronRight,
+  IconInfoCircle,
+  IconLink,
+  IconQrcode,
+  IconRefresh,
+  IconSearch,
+  IconSettings
 } from '@tabler/icons-react'
 import { chainClassNames, Popover, toast } from 'ono-react-element'
+import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-
-/** 平台对应的展示图标（windows 已迁到 Tabler，其余四项待迁移） */
-export const platformIcon = {
-  windows: <IconBrandWindows {...TABLER_ICON_INFO} />,
-  macos: <IconBrandAppleFilled {...TABLER_ICON_INFO} />,
-  linux: <Linux size={TABLER_ICON_INFO.size} />,
-  phone: <IconDeviceMobile {...TABLER_ICON_INFO} />,
-  web: <IconWorld {...TABLER_ICON_INFO} />
-}
 
 export default () => {
   const { devices, refresh } = useDevices()
@@ -32,10 +30,7 @@ export default () => {
     'port',
     'savePath'
   ])
-  // const { deviceName, theme } = useStore(["deviceName", "theme"]);
   const [connecting, setConnecting] = useState<string | null>(null)
-  const [manualOpen, setManualOpen] = useState(false)
-  const [manualAddr, setManualAddr] = useState('')
   const navigate = useNavigate()
 
   // const [, changeTheme] = useThemePro({
@@ -64,7 +59,10 @@ export default () => {
   }
 
   // 手动输入 IP:端口 连接（mDNS 发现不到对方时使用）
-  const handleManualConnect = async () => {
+  const handleManualConnect = async (
+    manualAddr: string,
+    onSuccess: () => void
+  ) => {
     const addr = manualAddr.trim()
     if (!addr) return
     setConnecting('manual')
@@ -72,6 +70,7 @@ export default () => {
       const peer = await connectByAddr(addr)
       useStore.setState({ connectedDevice: peer })
       navigate('/transfer')
+      onSuccess()
     } catch (error) {
       toast.error(`连接失败: ${error}`)
     } finally {
@@ -92,6 +91,7 @@ export default () => {
       const url = `http://${ip}:${webPort}/?token=${token}`
       qrUploadDialog({
         url,
+        width: 260,
         // 用户手动关闭弹窗且未配对时才停止服务器；
         // 配对成功后弹窗自动关闭，服务器保持运行直到退出传输页
         onClose: () => stopWebUpload().catch(() => {})
@@ -104,33 +104,29 @@ export default () => {
 
   const btnList = [
     {
-      text: '刷新',
-      onClick: refresh
-    },
-    {
       text: '扫码连接',
+      className: 'bg-brand-500 text-on-brand',
+      icon: <IconQrcode stroke={2} />,
       onClick: handleWebUpload
     },
     {
       text: '手动连接',
-      onClick: () => setManualOpen(v => !v),
+      className: 'border border-line-200 bg-surface-base text-ink-700',
       icon: (
-        <Down
-          theme="outline"
-          size="10"
-          fill="#3b82f6"
-          strokeWidth={3}
-          className={`transition-transform ${manualOpen ? 'rotate-180' : ''}`}
-        />
-      )
+        <div className="text-ink-600">
+          <IconLink stroke={2} />
+        </div>
+      ),
+      onClick: () =>
+        manualLinkDialog({
+          handleConnect: handleManualConnect
+        })
     }
   ]
 
   return (
     <Layout>
-      <div className="flex flex-col gap-4 w-full flex-1 justify-center items-center relative p-6">
-        <div className="flex items-center gap-2 absolute top-2 right-2">
-          {/* <button
+      {/* <button
             className="little_btn"
             onClick={(e) =>
               changeTheme({
@@ -141,107 +137,151 @@ export default () => {
           >
             {changeThemeIcon()}
           </button> */}
-          <Link to="/settings" className="little_btn">
-            <SettingTwo {...ICON_INFO} />
-          </Link>
+      <div className="w-full flex justify-between">
+        <div className="flex justify-center items-center gap-[9px]">
+          <h2 className="text-ink-900 text-sm/[20px] font-semibold">
+            Easy2Send
+          </h2>
         </div>
 
-        {/* 标题 */}
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-1">Easy2Send</h2>
-          <div className="flex items-center gap-1">
-            <p className="text-sm text-gray-500">
-              {deviceName || '...'} · 点击设备开始互传
+        <Link
+          to="/settings"
+          className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600"
+        >
+          <IconSettings stroke={2} />
+        </Link>
+      </div>
+
+      <div className="w-[480px] flex flex-col gap-[18px]">
+        <div className="flex flex-col gap-[5px]">
+          <h1 className="text-ink-900 text-[19px]/[28px] font-bold">
+            {deviceName || '...'}
+          </h1>
+
+          <div className="flex gap-[7px] items-center">
+            <div className="bg-success-600 w-[7px] h-[7px] rounded-full"></div>
+
+            <p className="text-ink-500 text-body/[17px] font-normal">
+              已就绪 · {ip}:{port}
             </p>
+
             <Popover
               trigger="hover"
               placement="top-end"
-              content={`当前地址: ${ip}:${port}`}
+              content={
+                <p className="p-2">
+                  当前地址: {ip}:{port}
+                </p>
+              }
             >
               <button
                 aria-label={`关于“当前地址”的说明`}
-                className="text-gray-400 hover:text-gray-600 cursor-help"
+                className="cursor-help text-ink-400"
               >
-                <Info theme="outline" size="14" strokeWidth={2} />
+                <IconInfoCircle size={14} stroke={2} />
               </button>
             </Popover>
           </div>
         </div>
-        {/* 设备列表 */}
-        <div className="w-full max-w-md">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-600">
-              在线设备（{devices.length}）
-            </span>
-            <div className="flex items-center gap-3">
-              {btnList.map(({ text, icon, onClick }) => (
-                <button
-                  key={text}
-                  className={chainClassNames(
-                    'text-xs text-blue-500 hover:underline cursor-pointer',
-                    icon ? 'flex items-center gap-0.5' : ''
-                  )}
-                  onClick={onClick}
-                >
-                  {icon ? <span>{text}</span> : text}
-                  {icon}
-                </button>
-              ))}
-            </div>
+
+        <div className="w-full bg-surface-base border border-line-200 rounded-lg">
+          <div className="w-full h-[44px] px-[14px] flex justify-between items-center">
+            <p className="flex gap-[7px] items-center">
+              <span className="text-card/[19px] text-ink-700 font-medium">
+                在线设备
+              </span>
+              <span className="w-[21px] h-[18px] rounded-full bg-line-100 text-caption text-ink-600 font-medium flex justify-center items-center">
+                {devices.length}
+              </span>
+            </p>
+
+            <button
+              className="w-7 h-7 bg-surface-muted flex justify-center items-center rounded-sm text-ink-600 border border-line-100"
+              onClick={async e => {
+                const svg = e.currentTarget.children[0]
+                svg.classList.add('loading')
+                await refresh()
+                setTimeout(() => svg.classList.remove('loading'), 500)
+              }}
+            >
+              <IconRefresh size={18} stroke={2} />
+            </button>
           </div>
 
-          {manualOpen && (
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={manualAddr}
-                onChange={e => setManualAddr(e.target.value)}
-                placeholder="IP:端口 (如 192.168.1.9:8234)"
-                className="flex-1 text-sm border border-gray-300 rounded-md px-2 py-1 outline-none focus:border-blue-400"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handleManualConnect()
-                }}
-                disabled={connecting !== null}
-              />
-              <button
-                className="text-xs bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 disabled:opacity-50"
-                onClick={handleManualConnect}
-                disabled={connecting !== null || !manualAddr.trim()}
-              >
-                {connecting === 'manual' ? '连接中...' : '连接'}
-              </button>
-            </div>
-          )}
-
           {devices.length === 0 ? (
-            <div className="text-center text-gray-400 py-8 border border-dashed rounded-md">
-              暂无在线设备，请确认其他设备已启动 Easy2Send
+            <div className="h-[215px] border-t border-line-100 flex flex-col gap-2 justify-center items-center">
+              <div className="text-ink-300">
+                <IconSearch size={32} stroke={2} />
+              </div>
+              <p className="text-ink-600 text-body/[17px]">暂无在线设备</p>
+              <p className="text-ink-400 text-caption font-normal">
+                请确认其他设备已启动 Easy2Send
+              </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {devices.map(
-                ({ deviceId, deviceName, ip, port, platform, version }) => (
-                  <button
-                    key={deviceId}
-                    className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
-                    onClick={() => handleConnect(deviceId)}
-                    disabled={connecting !== null}
-                  >
-                    <span className="text-2xl">{platformIcon[platform]}</span>
-                    <div className="flex-1 text-left">
-                      <div className="font-medium">{deviceName}</div>
-                      <div className="text-xs text-gray-500">
-                        {ip}:{port} · {platform} · v{version}
+            <OverlayScrollbarsComponent
+              className="h-[215px] border-t border-line-100"
+              options={{
+                scrollbars: {
+                  theme: 'os-theme-dark',
+                  autoHide: 'leave',
+                  autoHideDelay: 0
+                }
+              }}
+              defer
+            >
+              <div className="p-2 flex flex-col gap-[6px]">
+                {devices.map(
+                  ({ deviceId, deviceName, ip, port, platform, version }) => (
+                    <button
+                      key={deviceId}
+                      className="w-full h-15 border border-line-200 flex items-center gap-3 px-3 justify-center rounded-md"
+                      disabled={connecting !== null}
+                      onClick={() => handleConnect(deviceId)}
+                    >
+                      <div className="w-9 h-9 bg-surface-muted rounded-md flex justify-center items-center text-ink-600">
+                        <PlatformIcon platform={platform} size={20} />
                       </div>
-                    </div>
-                    {connecting === deviceId && (
-                      <span className="text-xs text-blue-500">连接中...</span>
-                    )}
-                  </button>
-                )
-              )}
-            </div>
+                      <div className="flex flex-1 flex-col gap-[3px] text-left">
+                        <p className="text-ink-900 text-card/[19px]">
+                          {deviceName}
+                        </p>
+                        <p className="text-caption text-ink-400 font-normal">
+                          {ip}:{port} · {platform} · v{version}
+                        </p>
+                      </div>
+
+                      {connecting === deviceId ? (
+                        <span className="text-caption text-ink-400 font-normal">
+                          连接中...
+                        </span>
+                      ) : (
+                        <div className="text-ink-300">
+                          <IconChevronRight size={16} stroke={2} />
+                        </div>
+                      )}
+                    </button>
+                  )
+                )}
+              </div>
+            </OverlayScrollbarsComponent>
           )}
+        </div>
+
+        <div className="w-full flex gap-[10px]">
+          {btnList.map(({ text, className, icon, onClick }) => (
+            <button
+              key={text}
+              className={chainClassNames(
+                'flex-1 h-10 rounded-md text-card flex gap-2 justify-center items-center',
+                className
+              )}
+              onClick={onClick}
+            >
+              {icon}
+              <span>{text}</span>
+            </button>
+          ))}
         </div>
       </div>
     </Layout>

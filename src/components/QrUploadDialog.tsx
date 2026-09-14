@@ -1,5 +1,5 @@
 import { useCreateQRCode } from '@/hooks'
-import { Copy } from '@icon-park/react'
+import { IconCopy } from '@tabler/icons-react'
 import { listen } from '@tauri-apps/api/event'
 import { copyText, portalRenderer, TemplateDialog } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
@@ -45,7 +45,7 @@ const QrUploadDialog = ({
           errorCorrectionLevel
         })
         setQrcode(qr)
-        setStatus('请使用手机扫码上传')
+        setStatus('等待手机扫码…')
       } catch (e) {
         setStatus('二维码生成失败: ' + String(e))
       }
@@ -82,52 +82,57 @@ const QrUploadDialog = ({
       animation={{ type: 'fade', startPosition: '30%' }}
     >
       {enhancedDialogClose => (
-        <div className="flex flex-col items-center gap-3 bg-white p-4 rounded-md w-100">
-          <h1>手机上传</h1>
-          <p className="text-sm text-gray-500">
-            扫描二维码，将手机文件发送到电脑
-          </p>
+        <div className="flex flex-col items-center gap-5 bg-surface-base p-7 rounded-lg w-140">
+          <div className="flex flex-col gap-1.5 items-center">
+            <h1 className="text-ink-900 font-bold text-[17px]/[25px]">
+              手机上传
+            </h1>
+            <p className="text-body/[17px] text-ink-500 font-normal">
+              扫描二维码，将手机文件发送到电脑
+            </p>
+          </div>
           {qrcode ? (
             <>
-              <div className="w-full mt-2 px-2 py-1 bg-gray-50 rounded text-center">
-                <p className="text-xs text-gray-500">
-                  电脑访问地址{' '}
+              <div className="border border-line-200 rounded-lg overflow-hidden">
+                <img src={qrcode} alt="二维码" />
+              </div>
+              <div className="w-full flex flex-col gap-[5px] px-3 py-2.5 bg-surface-muted rounded text-left">
+                <p className="text-xs text-ink-500 flex items-center justify-between">
+                  <span className="text-caption/[16px] font-normal">
+                    电脑访问地址
+                  </span>
                   <button
                     onClick={() => {
                       copyText(url)
                       setStatus('已复制到剪贴板')
                     }}
                   >
-                    <Copy
-                      theme="outline"
-                      size="14"
-                      fill="#333"
-                      strokeWidth={3}
-                    />
+                    <IconCopy size={14} stroke={1.5} />
                   </button>
                 </p>
-                <p className="text-xs text-gray-800 break-all select-all">
+                <p className="text-caption/[16px] text-ink-700 break-all select-all">
                   {url}
                 </p>
               </div>
-              <div className="border border-black">
-                <img src={qrcode} alt="二维码" />
+              <div className="flex items-center justify-center gap-[7px]">
+                <div className="w-[7px] h-[7px] rounded-full bg-brand-500"></div>
+                <p className="text-body/[17px] text-ink-500 font-normal">
+                  {status}
+                </p>
               </div>
-              <p className="text-xs text-blue-500">{status}</p>
             </>
           ) : (
             <div className="w-50 h-50 flex items-center justify-center">
-              <p className="text-sm text-gray-400">{status}</p>
+              <p className="text-body/[17px] text-ink-500 font-normal">
+                {status}
+              </p>
             </div>
           )}
           <button
-            className="bg-transparent text-[#333] border border-[#333] btn ml-auto"
-            onClick={() => {
-              enhancedDialogClose()
-              setTimeout(handleClose, 500)
-            }}
+            className="w-full h-[38px] text-ink-700 border border-line-200 rounded-md text-card/[19px]"
+            onClick={enhancedDialogClose}
           >
-            关闭
+            取消
           </button>
         </div>
       )}

@@ -11,8 +11,7 @@ export default defineConfig(async () => ({
     react(),
     Unocss(),
     autoRouter({
-      lazy: false,
-      virtualModule: true
+      lazy: false
     })
   ],
 

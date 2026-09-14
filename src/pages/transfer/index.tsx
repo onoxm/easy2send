@@ -5,9 +5,10 @@ import {
 } from '@/api/fs'
 import { stopWebUpload } from '@/api/webupload'
 import { ICON_INFO } from '@/common/common'
+import { PlatformIcon } from '@/components'
 import { useNotification, useQuery, useTauriDrag } from '@/hooks'
-import { platformIcon } from '@/pages'
 import useStore from '@/store'
+import { TransferTask, TransferType } from '@/types/transfer'
 import { Back, Receive, Send } from '@icon-park/react'
 import { Event, listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -16,7 +17,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { EmptyPanel } from './EmptyPanel'
 import { TaskCardList } from './TaskCardList'
-import { TransferTask, TransferType } from '@/types/transfer'
 
 export default () => {
   const { connectedDevice, concurrentUploads, ip, port } = useStore([
@@ -365,7 +365,7 @@ export default () => {
           {connectedDevice.deviceId === 'web-upload' ? (
             <>
               <span className="text-xl">
-                {platformIcon[connectedDevice.platform]}
+                <PlatformIcon platform={connectedDevice.platform} size={20} />
               </span>
               <span className="truncate max-w-[260px]">
                 {connectedDevice.deviceName} (http://{ip}:{port})
@@ -374,7 +374,7 @@ export default () => {
           ) : (
             <>
               <span className="text-xl">
-                {platformIcon[connectedDevice.platform]}
+                <PlatformIcon platform={connectedDevice.platform} size={20} />
               </span>
               <span className="truncate max-w-[260px]">
                 {connectedDevice.deviceName} ({connectedDevice.ip}:

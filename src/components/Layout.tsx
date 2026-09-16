@@ -11,7 +11,9 @@ export const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-between py-5 px-8 bg-canvas">
       {children}
-      <p className="text-center text-caption text-ink-400">版本：{version}</p>
+      <p className="text-center text-caption text-ink-400">
+        Easy2Send v{version}
+      </p>
     </div>
   )
 }

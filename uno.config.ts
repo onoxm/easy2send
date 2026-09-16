@@ -69,11 +69,16 @@ export default defineConfig({
     // 用语义名而非覆盖 sm/md/lg，避免改动既有 rounded-md(11 处) / rounded-lg(6 处) 的观感，
     // 也避免与内置 --radius-md/.375rem、--radius-lg/.5rem 撞名。
     // 用法：rounded-chip(6) / rounded-control(10) / rounded-card(14) / rounded-pill(999)
+    //
+    // ⚠️ 值必须指向 --radii-*（复数）而不是 --radius-*：presetWind4 会把这里的每个
+    // key 原样导出成 --radius-{key}，若值也引用同名变量，产物就成了自引用
+    // （--radius-control: var(--radius-control)）—— CSS 里自引用按「计算时无效」处理，
+    // border-radius 会静默回落成 0，类名存在但圆角消失，极难排查。
     radius: {
-      chip: 'var(--radius-chip)',
-      control: 'var(--radius-control)',
-      card: 'var(--radius-card)',
-      pill: 'var(--radius-pill)'
+      chip: 'var(--radii-chip)',
+      control: 'var(--radii-control)',
+      card: 'var(--radii-card)',
+      pill: 'var(--radii-pill)'
     }
   }
 })

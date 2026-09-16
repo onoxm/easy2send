@@ -18,7 +18,7 @@ export const useCheckUpdate = () => {
             update.close()
             return
           }
-          updateDialog(callback => callback(update))
+          updateDialog(update)
         } else {
           console.log('当前已是最新版本。')
           useStore.setState({ canUpdate: false })

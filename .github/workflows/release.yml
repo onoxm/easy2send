@@ -29,6 +29,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # 必须取完整历史：Generate release notes 要按「上一个 tag..HEAD」取提交，
+          # 默认的 fetch-depth: 1 不带历史也不带 tag，range 会取空。
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -40,6 +44,22 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          # 生成的内容会经 tauri-action 写进 latest.json 的 notes 字段，
+          # 最终显示在应用内的更新弹窗上，所以必须是给人看的描述而非样板话术。
+          # 放在 Setup Node.js 之后：脚本用 Node 剥 emoji（见脚本内注释）。
+          node scripts/release-notes.mjs > /tmp/release-notes.md
+          echo "=== Release notes ==="
+          cat /tmp/release-notes.md
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            cat /tmp/release-notes.md
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -69,7 +89,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -93,9 +113,12 @@ jobs:
           fi
 
           # 创建 Release（已存在时忽略，避免并行 job 竞态）
+          # --latest 必须显式指定：GitHub 自动判定 Latest 依赖 created_at，而 created_at 是
+          # tag 所指 commit 的日期——本仓库所有版本 tag 都由 gh 建在同一个 main HEAD 上，
+          # created_at 完全相同，日期排序失效，只能退化到未公开的版本号兜底规则
           gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
             --title "$TAG_NAME" \
-            --notes "Automated update artifacts" 2>/dev/null || true
+            --notes-file /tmp/release-notes.md --latest 2>/dev/null || true
 
           UPLOAD_FAILED=0
 
@@ -222,12 +245,55 @@ jobs:
           echo "=== Fixed latest.json ==="
           cat /tmp/latest.json
 
-          # 确保公开仓库 Release 存在
+          # 确保公开仓库 Release 存在。公开仓库是用户实际下载的入口，说明不能留样板话术：
+          # 优先从源仓库 Release 取回真实说明（由 tauri-action 的 releaseBody 写入），
+          # 取不到就保持现状，不覆盖成占位文本。
           echo "=== Step 3: Ensure public release exists ==="
-          GH_TOKEN="$PUBLIC_TOKEN" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
-            --title "$TAG_NAME" --notes "Automated update artifacts" 2>/dev/null || true
+          NOTES_FILE=/tmp/public-notes.md
+          NOTES_ARGS=()
+          if GH_TOKEN="$SOURCE_TOKEN" gh release view "$TAG_NAME" --repo "$SOURCE_REPO" \
+            --json body -q .body > "$NOTES_FILE" 2>/dev/null && [ -s "$NOTES_FILE" ]; then
+            echo "已取到源仓库更新说明："
+            cat "$NOTES_FILE"
+            NOTES_ARGS=(--notes-file "$NOTES_FILE")
+          else
+            echo "⚠ 未取到源仓库更新说明"
+            rm -f "$NOTES_FILE"
+          fi
+
+          if GH_TOKEN="$PUBLIC_TOKEN" gh release create "$TAG_NAME" --repo "$PUBLIC_REPO" \
+            --title "$TAG_NAME" "${NOTES_ARGS[@]}" 2>/dev/null; then
+            echo "已创建公开仓库 Release"
+          elif [ ${#NOTES_ARGS[@]} -gt 0 ]; then
+            GH_TOKEN="$PUBLIC_TOKEN" gh release edit "$TAG_NAME" --repo "$PUBLIC_REPO" \
+              --notes-file "$NOTES_FILE"
+            echo "公开仓库 Release 已存在，已同步更新说明"
+          else
+            echo "公开仓库 Release 已存在，无可用说明，保持原样"
+          fi
 
           # 上传到公开仓库
           echo "=== Step 4: Upload to public repo ==="
           GH_TOKEN="$PUBLIC_TOKEN" gh release upload "$TAG_NAME" \
             /tmp/latest.json --repo "$PUBLIC_REPO" --clobber
+
+          # 收尾时再强制标一次 Latest：上面矩阵 job 里的 create 只要撞上已存在的 release 就会
+          # 失败（被 || true 吞掉），--latest 也随之丢失；这里在唯一一个 job 里兜底，
+          # 保证 /releases/latest/download/latest.json 永远指向刚发布的版本
+          echo "=== Step 5: Force mark as latest ==="
+          GH_TOKEN="$PUBLIC_TOKEN" gh release edit "$TAG_NAME" \
+            --repo "$PUBLIC_REPO" --latest
+
+      # 收尾正式发布源仓库的草稿：tauri-action 以 draft 创建 release，而 draft 永远不可能
+      # 被标成 Latest（GitHub 硬规则），必须手动或在这里自动 Publish —— 这就是「工作流跑完
+      # 但最新版没变成 latest」的原因。用 needs 结果判断，保证只在三平台全成功时才公开
+      - name: Publish source draft release
+        if: needs.publish-tauri.result == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          gh release edit "$TAG_NAME" --repo "${{ github.repository }}" \
+            --draft=false --latest
+          echo "Published $TAG_NAME on ${{ github.repository }} and marked as latest"

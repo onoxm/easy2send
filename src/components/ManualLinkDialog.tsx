@@ -32,12 +32,13 @@ const ManualLinkDialogBox = ({
 
   return (
     <TemplateDialog
+      className="w-110 h-[257px] p-7 bg-surface-base rounded-card flex flex-col gap-4"
       dialogClose={destroy}
       onContextMenu={e => e.preventDefault()}
       animation={{ type: 'fade', startPosition: '30%' }}
     >
       {enhancedDialogClose => (
-        <div className="w-110 h-[257px] p-7 bg-surface-base rounded-lg flex flex-col gap-4">
+        <>
           <div className="flex flex-col gap-1.5">
             <h1 className="text-ink-900 font-bold text-[17px]/[25px]">
               手动连接
@@ -51,7 +52,7 @@ const ManualLinkDialogBox = ({
             <input
               type="text"
               placeholder="如 192.168.1.9:8234"
-              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-[10px] border border-line-200"
+              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200"
               value={manualAddr}
               onChange={e => {
                 console.log(e.target.value)
@@ -67,7 +68,7 @@ const ManualLinkDialogBox = ({
               <button
                 key={text}
                 className={chainClassNames(
-                  'w-14.5 h-9 text-card/[19px] rounded-[10px]',
+                  'px-4 py-[8.5px] text-card/[19px] rounded-control',
                   className
                 )}
                 onClick={() => onClick(enhancedDialogClose)}
@@ -76,11 +77,17 @@ const ManualLinkDialogBox = ({
               </button>
             ))}
           </div>
-        </div>
+        </>
       )}
     </TemplateDialog>
   )
 }
 
-export const manualLinkDialog = (options: ManualLinkDialogProps) =>
-  portalRenderer(ManualLinkDialogBox, options, 'manual-link-dialog-root')
+export const manualLinkDialog = (
+  handleConnect: (manualAddr: string, onSuccess: () => void) => void
+) =>
+  portalRenderer(
+    ManualLinkDialogBox,
+    { handleConnect },
+    'manual-link-dialog-root'
+  )

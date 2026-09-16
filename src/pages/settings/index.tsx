@@ -1,9 +1,7 @@
 import { setDeviceName } from '@/api/discovery'
 import { windowBasicOperation } from '@/api/tauri'
-import { ICON_INFO } from '@/common/common'
 import useStore from '@/store'
-import { EditTwo, FolderOpen } from '@icon-park/react'
-import { IconArrowLeft } from '@tabler/icons-react'
+import { IconArrowLeft, IconEdit, IconFolder } from '@tabler/icons-react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { check } from '@tauri-apps/plugin-updater'
@@ -19,14 +17,16 @@ export default () => {
     canUpdate,
     deviceName,
     concurrentUploads,
-    version
+    version,
+    theme
   } = useStore([
     'savePath',
     'canUpdate',
     'autoCheckUpdate',
     'deviceName',
     'concurrentUploads',
-    'version'
+    'version',
+    'theme'
   ])
   const [downloading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -37,14 +37,14 @@ export default () => {
   const savePathBtnList = [
     {
       txt: '打开文件夹',
-      icon: <FolderOpen {...ICON_INFO} />,
+      icon: <IconFolder size={18} stroke={2} />,
       onClick: () => {
         invoke('open_file', { path: savePath })
       }
     },
     {
       txt: '更改保存路径',
-      icon: <EditTwo {...ICON_INFO} />,
+      icon: <IconEdit size={18} stroke={2} />,
       onClick: async () => {
         const selected = await open({
           directory: true,
@@ -79,14 +79,14 @@ export default () => {
             readOnly
             type="text"
             value={savePath}
-            className="input cursor-default"
+            className="input bg-surface-muted text-ink-600 text-body/[17px] flex-1 cursor-default"
           />
           {savePathBtnList.map(({ txt, icon, onClick }) => (
             <button
               key={txt}
               title={txt}
               aria-label={txt}
-              className="little_btn hover:bg-gray-200 hover:text-gray-800 shrink-0"
+              className="border border-line-200 p-2.25 rounded-md text-ink-600 shrink-0"
               onClick={onClick}
             >
               {icon}
@@ -97,23 +97,25 @@ export default () => {
     },
     {
       title: '并发传输数',
-      help: (
-        <span className="text-sm text-gray-500">
-          同时发送多个文件时，最多并发的任务数（范围 1-5，默认 2）
-        </span>
-      ),
       children: (
-        <OnoSelect
-          selectClassName="input border border-transparent"
-          optionsClassName="border border-[#666]"
-          isShowArrow={false}
-          defaultValue={concurrentUploads}
-          options={concurrentOptions.map(n => ({
-            label: n + '',
-            value: n
-          }))}
-          onChange={e => useStore.setState({ concurrentUploads: e })}
-        />
+        <div className="flex items-center gap-2.5">
+          {/* OnoSelect 自带 .ono-select{width:100%}，宽度不受外层控制；设计稿里
+              下拉框是固定 82 宽（3:387），这里加一层定宽容器把它钉住。 */}
+          <OnoSelect
+            selectClassName="input py-[7.5px] pl-[11px] pr-[9px] border border-line-200 bg-surface-base text-ink-900 text-card/[19px]"
+            optionsClassName="border border-[#666]"
+            isShowArrow={false}
+            defaultValue={concurrentUploads}
+            options={concurrentOptions.map(n => ({
+              label: n + '',
+              value: n
+            }))}
+            onChange={e => useStore.setState({ concurrentUploads: e })}
+          />
+          <p className="text-body/[17px] text-ink-500 font-normal shrink-0">
+            个任务同时进行
+          </p>
+        </div>
       )
     },
     {
@@ -124,7 +126,7 @@ export default () => {
           value={deviceName}
           maxLength={32}
           placeholder="其他设备看到的名字（1-32 字符，不含点号）"
-          className="input border border-transparent focus:border-[#5C66E3]"
+          className="input border border-line-200 text-ink-900 text-card/[19px] flex-1"
           onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={async () => {
             try {
@@ -141,9 +143,9 @@ export default () => {
       children: (
         <>
           <Switch
-            style={{ width: 30, height: 18 }}
+            style={{ width: 36, height: 20 }}
             id="autoUpdate"
-            color={'#22c55e'}
+            color={theme === 'light' ? '#14a34a' : '#35c077'}
             checked={autoCheckUpdate}
             aria-label="自动检查更新"
             onChange={bl =>
@@ -163,26 +165,34 @@ export default () => {
         </>
       ),
       help: (
-        <span className="text-sm text-gray-500">
+        <p className="py-2.5 px-3 text-ink-600 text-caption/[16px] font-normal">
           开启后自动检查新版本；右侧按钮在有可用更新时出现
-        </span>
+        </p>
       )
     }
   ]
 
   return (
-    <div className="w-full flex-1 flex flex-col gap-3 p-3">
+    <div className="w-full flex flex-col gap-3 py-5 px-7 bg-canvas">
       <div className="flex items-center gap-3">
         <button
-          type="button"
-          className="flex items-center gap-1.5 h-8 px-2.5 border border-solid border-[#DEE3ED] bg-white rounded-[10px] text-[#4F5463] hover:bg-[#F7FAFC] shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0"
           onClick={handleBack}
         >
-          <IconArrowLeft size={14} stroke={1.6} />
-          <span className="text-xs font-medium">返回</span>
+          <span className="text-ink-600">
+            <IconArrowLeft size={14} stroke={2} />
+          </span>
+          <span className="text-ink-700 text-body/[17px] font-medium">
+            返回
+          </span>
         </button>
-        <h1 className="flex-1 text-2xl font-bold">设置</h1>
-        <span className="shrink-0 h-6 flex items-center px-2.5 border border-solid border-[#DEE3ED] bg-white rounded-[6px] text-[11px] font-medium text-[#6B7385]">
+        <div className="flex-1 flex flex-col gap-.75">
+          <h1 className="text-[18px]/[26px] font-bold text-ink-900">设置</h1>
+          <p className="text-caption/[16px] font-normal text-ink-400">
+            偏好设置修改后立即生效
+          </p>
+        </div>
+        <span className="shrink-0 py-[1px] px-2.25 border border border-line-200 bg-surface-base rounded-pill text-caption/[16px] text-ink-500">
           v{version}
         </span>
       </div>

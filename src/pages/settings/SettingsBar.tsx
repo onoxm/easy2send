@@ -1,4 +1,4 @@
-import { Info } from '@icon-park/react'
+import { IconInfoCircle } from '@tabler/icons-react'
 import { Popover } from 'ono-react-element'
 import type { ReactNode } from 'react'
 
@@ -10,17 +10,17 @@ interface SettingsBarProps {
 
 export const SettingsBar = ({ title, help, children }: SettingsBarProps) => {
   return (
-    <div className="w-full flex gap-3 items-center bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
-      <div className="flex items-center gap-1 shrink-0 w-20 text-sm text-gray-600">
-        <h3 className="shrink-0">{title}</h3>
+    <div className="w-full flex flex-col gap-2 bg-white rounded-lg py-3.5 px-4 border border-line-200 shadow-sm">
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-card/[19px] text-ink-700">{title}</h3>
         {help && (
           <Popover trigger="hover" placement="top-end" content={help}>
-            <button
+            <span
               aria-label={`关于“${title}”的说明`}
-              className="text-gray-400 hover:text-gray-600 cursor-help"
+              className="text-ink-300 cursor-help"
             >
-              <Info theme="outline" size="14" strokeWidth={2} />
-            </button>
+              <IconInfoCircle size={16} stroke={2} />
+            </span>
           </Popover>
         )}
       </div>

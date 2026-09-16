@@ -10,14 +10,13 @@ import { useDevices } from '@/hooks'
 import useStore from '@/store'
 import {
   IconChevronRight,
-  IconInfoCircle,
   IconLink,
   IconQrcode,
   IconRefresh,
   IconSearch,
   IconSettings
 } from '@tabler/icons-react'
-import { chainClassNames, Popover, toast } from 'ono-react-element'
+import { chainClassNames, toast } from 'ono-react-element'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -117,10 +116,7 @@ export default () => {
           <IconLink stroke={2} />
         </div>
       ),
-      onClick: () =>
-        manualLinkDialog({
-          handleConnect: handleManualConnect
-        })
+      onClick: () => manualLinkDialog(handleManualConnect)
     }
   ]
 
@@ -164,23 +160,6 @@ export default () => {
             <p className="text-ink-500 text-body/[17px] font-normal">
               已就绪 · {ip}:{port}
             </p>
-
-            <Popover
-              trigger="hover"
-              placement="top-end"
-              content={
-                <p className="p-2">
-                  当前地址: {ip}:{port}
-                </p>
-              }
-            >
-              <button
-                aria-label={`关于“当前地址”的说明`}
-                className="cursor-help text-ink-400"
-              >
-                <IconInfoCircle size={14} stroke={2} />
-              </button>
-            </Popover>
           </div>
         </div>
 

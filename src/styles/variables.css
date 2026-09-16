@@ -41,13 +41,16 @@
   --color-warn-600: #b54708;
   --color-warn-100: #fcf2e8;
 
-  /* 圆角 · 命名刻意避开 sm/md/lg：presetWind4 的 preflight 也声明了
-   * --radius-md/.375rem、--radius-lg/.5rem，且它在产物中位于本文件之后，
-   * 同权重下会覆盖这里。带语义前缀可彻底隔离两套体系。 */
-  --radius-chip: 6px;
-  --radius-control: 10px;
-  --radius-card: 14px;
-  --radius-pill: 999px;
+  /* 圆角 · 名字用复数 radii，是为了避开 presetWind4 的 --radius-* 命名空间。
+   * uno.config.ts 的 theme.radius 会把每个 key 导出成 --radius-{key}，若这里
+   * 也叫 --radius-control，产物就变成 --radius-control: var(--radius-control)，
+   * 自引用在 CSS 里属「计算时无效」，border-radius 会静默回落成 0（直角）。
+   * 单复数错开（同 --color-* 对 UnoCSS --colors-* 的做法）即可让导出退化成
+   * 无害的转发：--radius-control: var(--radii-control)。 */
+  --radii-chip: 6px;
+  --radii-control: 10px;
+  --radii-card: 14px;
+  --radii-pill: 999px;
 
   /* 字阶 · 对应设计规范「02 字体」五级
    * 经 uno.config.ts 的 theme.text 暴露为 text-title / text-section /

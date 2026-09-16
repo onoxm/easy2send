@@ -19,7 +19,7 @@
 }
 
 .input {
-  @apply h-8 text bg-[#f5f5f5] p-1 px-2 rounded-md outline-none flex-1 text-sm;
+  @apply px-[11px] py-[8.5px] rounded-md font-normal outline-none;
 }
 
 .scroll_vertical {

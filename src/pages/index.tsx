@@ -6,23 +6,41 @@ import {
   PlatformIcon,
   qrUploadDialog
 } from '@/components'
-import { useDevices } from '@/hooks'
+import { useDevices, useTheme } from '@/hooks'
 import useStore from '@/store'
 import {
   IconChevronRight,
+  IconContrast,
   IconLink,
+  IconMoon,
   IconQrcode,
   IconRefresh,
   IconSearch,
-  IconSettings
+  IconSettings,
+  IconSun
 } from '@tabler/icons-react'
-import { chainClassNames, toast } from 'ono-react-element'
+import { chainClassNames, ThemeType, toast } from 'ono-react-element'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
+/** 三态主题的说明文字（按钮的 title / aria-label） */
+const THEME_LABEL: Record<ThemeType, string> = {
+  system: '跟随系统',
+  light: '浅色',
+  dark: '深色'
+}
+
+/** 图标跟着当前模式走：对比度=跟随系统，太阳=浅色，月亮=深色 */
+const ThemeIcon = ({ theme }: { theme: ThemeType }) => {
+  if (theme === 'light') return <IconSun stroke={2} />
+  if (theme === 'dark') return <IconMoon stroke={2} />
+  return <IconContrast stroke={2} />
+}
+
 export default () => {
   const { devices, refresh } = useDevices()
+  const { theme, cycleTheme } = useTheme()
   const { deviceName, ip, port, savePath } = useStore([
     'deviceName',
     'ip',
@@ -124,17 +142,6 @@ export default () => {
 
   return (
     <Layout>
-      {/* <button
-            className="little_btn"
-            onClick={(e) =>
-              changeTheme({
-                targetTheme: theme === 'light' ? 'dark' : 'light',
-                element: e.currentTarget
-              })
-            }
-          >
-            {changeThemeIcon()}
-          </button> */}
       <div className="w-full flex justify-between">
         <div className="flex justify-center items-center gap-[9px]">
           <h2 className="text-ink-900 text-sm/[20px] font-semibold">
@@ -142,12 +149,25 @@ export default () => {
           </h2>
         </div>
 
-        <Link
-          to="/settings"
-          className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
-        >
-          <IconSettings stroke={2} />
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* 三态循环：跟随系统 → 浅色 → 深色（切换逻辑见 hooks/useTheme.ts） */}
+          <button
+            type="button"
+            className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
+            title={`主题：${THEME_LABEL[theme]}`}
+            aria-label={`主题：${THEME_LABEL[theme]}，点击切换`}
+            onClick={cycleTheme}
+          >
+            <ThemeIcon theme={theme} />
+          </button>
+
+          <Link
+            to="/settings"
+            className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
+          >
+            <IconSettings stroke={2} />
+          </Link>
+        </div>
       </div>
 
       <div className="w-[480px] flex flex-col gap-[18px]">

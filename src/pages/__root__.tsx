@@ -1,5 +1,11 @@
 import { startDiscovery } from '@/api/discovery'
-import { useCheckUpdate, useIP, usePort, useTauriListeners } from '@/hooks'
+import {
+  useCheckUpdate,
+  useIP,
+  usePort,
+  useTauriListeners,
+  useTheme
+} from '@/hooks'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
 import type { DeviceInfo } from '@/types/discovery'
@@ -11,6 +17,9 @@ import { Outlet, useNavigate } from 'react-router'
 
 export default () => {
   useConfig()
+
+  // 主题三态：把 store 里的模式落到 <html> 的 dark 类，system 态下跟随系统变化
+  useTheme()
 
   useCheckUpdate()
 
@@ -108,11 +117,6 @@ export default () => {
   useEffect(() => {
     useStore.setState({ ip, port })
   }, [ip, port])
-
-  // useEffect(() => {
-  //   document.documentElement.classList.remove('dark')
-  //   document.documentElement.classList.add(theme)
-  // }, [theme])
 
   return (
     <main className="w-screen h-screen" onContextMenu={e => e.preventDefault()}>

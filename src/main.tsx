@@ -1,5 +1,4 @@
 import { router } from '@/router'
-import '@icon-park/react/styles/index.css'
 import '@unocss/reset/tailwind.css'
 import 'ono-react-element/index.css'
 import ReactDOM from 'react-dom/client'

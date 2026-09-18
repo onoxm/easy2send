@@ -1,214 +1,617 @@
+/* Easy2Send · 网页上传页（扫码后手机打开的那一屏）
+ *
+ * 对应设计稿「07 网页上传 · 手机端（src-tauri/web）」
+ *   浅色 28:11(配对中) / 28:12(已连接) / 28:13(上传中) / 28:14(上传完成) / 28:15(配对失败)
+ *   暗色 28:152 / 28:153 / 28:154 / 28:155 / 28:156
+ *
+ * 这一页由 Rust 内嵌（scripts/minify-web.mjs → src-tauri/src/webupload/），
+ * 不经过 UnoCSS，所以 token 在这里重新声明一份，命名与 src/styles/variables.css 对齐。
+ *
+ * 版面模型（五屏高度都是这么算出来的，改动时照着这个账算）：
+ *   页面 = 品牌区 + 状态区 + 底部信息，段间距统一 28，整块在视口内垂直居中；
+ *   品牌区 logo56 + 10 + 产品名28 + 10 + 副标题20 = 124。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* 语义 token（与主应用同源） */
+  --brand-100: #e3e8fc;
+  --brand-200: #c9cff7;
+  --brand-500: #5c66e3;
+  --brand-600: #4a54d6;
+  --on-brand: #ffffff;
+
+  --ink-900: #171a21;
+  --ink-700: #363b47;
+  --ink-600: #4f5463;
+  --ink-500: #6b7385;
+  --ink-400: #99a1b0;
+  --ink-300: #c2c7d4;
+
+  --line-200: #dee3ed;
+
+  --surface-base: #ffffff;
+
+  --success-600: #14a34a;
+  --success-100: #e5f5ed;
+  --success-line: rgba(20, 163, 74, 0.2);
+  --danger-600: #d92e21;
+  --danger-100: #fcedeb;
+  --danger-line: rgba(217, 46, 33, 0.2);
+
+  /* ⚠️ 品牌色描边（进度条填充 / 文件图标 / 加载环）明暗**不同档**：
+   *   浅色 brand.500 #5C66E3 → 暗色 brand.600 #8B93F4（暗色下更亮才看得清）。
+   *   而"品牌色底 + 白字"的主按钮两套都用 brand.500（暗色下用 #8B93F4 会让白字
+   *   对比度掉到 2.8:1）—— 所以按钮**不要**用 --accent。 */
+  --accent: var(--brand-500);
+  --accent-track: var(--brand-200);
+
+  /* 下面三个是设计稿里的原值，不落在既有 token 上：
+   * 浅色页底是纯白（不是 canvas #F2F5FA），卡片 #FAFCFF、内嵌小块 #F1F4FF
+   * 也都和 surface.muted / brand.50 差 2~3 个通道。按设计稿取值，别"顺手对齐"成 token。 */
+  --page-bg: #ffffff;
+  --card-bg: #fafcff;
+  --chip-bg: #f1f4ff;
+
+  /* 品牌标渐变是全项目硬编码值（#4A55D6 ≠ brand.600 #4A54D6），明暗两套共用，不随主题变 */
+  --brand-gradient: linear-gradient(135deg, #6c78ea 0%, #4a55d6 100%);
+
+  /* 圆角：卡片与按钮同为 14，小底板 10，药丸 999 —— 注意这页的圆角比主应用大一档 */
+  --r-chip: 10px;
+  --r-card: 14px;
+  --r-pill: 999px;
+}
+
+/* 暗色取值。⚠️ 本块与紧随其后的 media 块**必须逐字一致** —— 这是 CSS 里表达
+ * 「跟随系统 + 手动覆盖」的写法：
+ *   · 有 data-theme='dark'  → 手动选了深色，命中本块；
+ *   · 有 data-theme='light' → 手动选了浅色，下面 media 块用 :not() 把它排除；
+ *   · 没有 data-theme       → 跟随系统，由 media 块决定。
+ * 之所以不用 light-dark()：手机内置浏览器对它的支持参差，一旦不认就整页失色。 */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand-100: #1d2440;
+  --brand-200: #2d3663;
+  --brand-600: #8b93f4;
+
+  --ink-900: #e9edf5;
+  --ink-700: #c5ccda;
+  --ink-600: #a8b0c2;
+  --ink-500: #98a1b4;
+  --ink-400: #7a8395;
+  --ink-300: #5a6374;
+
+  --line-200: #333b47;
+
+  --surface-base: #262d38;
+
+  --success-600: #35c077;
+  --success-100: #10251a;
+  --success-line: rgba(53, 192, 119, 0.2);
+  --danger-600: #f0665a;
+  --danger-100: #2c1512;
+  --danger-line: rgba(240, 102, 90, 0.2);
+
+  --accent: var(--brand-600);
+
+  /* 暗色下这三个正好落到 token 上：canvas / surface.base / brand.100 */
+  --page-bg: #0f1218;
+  --card-bg: #262d38;
+  --chip-bg: #1d2440;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --brand-100: #1d2440;
+    --brand-200: #2d3663;
+    --brand-600: #8b93f4;
+
+    --ink-900: #e9edf5;
+    --ink-700: #c5ccda;
+    --ink-600: #a8b0c2;
+    --ink-500: #98a1b4;
+    --ink-400: #7a8395;
+    --ink-300: #5a6374;
+
+    --line-200: #333b47;
+
+    --surface-base: #262d38;
+
+    --success-600: #35c077;
+    --success-100: #10251a;
+    --success-line: rgba(53, 192, 119, 0.2);
+    --danger-600: #f0665a;
+    --danger-100: #2c1512;
+    --danger-line: rgba(240, 102, 90, 0.2);
+
+    --accent: var(--brand-600);
+
+    --page-bg: #0f1218;
+    --card-bg: #262d38;
+    --chip-bg: #1d2440;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
+
 html,
 body {
   height: 100%;
   overscroll-behavior: none;
 }
+
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-  color: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  background: var(--page-bg);
+  color: var(--ink-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.card {
-  width: calc(100% - 48px);
+
+.is-hidden {
+  display: none !important;
+}
+
+/* ---------- 页面骨架：整块内容在视口内垂直居中 ---------- */
+
+.page {
+  position: relative; /* 主题切换按钮以它为定位基准 */
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top) + 32px) 24px
+    calc(env(safe-area-inset-bottom) + 32px);
+}
+
+/* margin:auto 而不是 justify-content:center —— 内容超过一屏时前者不会把顶部裁掉 */
+.stack {
+  margin: auto;
+  width: 100%;
   max-width: 420px;
-  background: rgba(30, 27, 75, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(129, 140, 248, 0.2);
-  border-radius: 24px;
-  padding: 40px 28px 36px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* ---------- 品牌区 ---------- */
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   text-align: center;
 }
-.logo {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 20px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-card);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  display: grid;
+  place-items: center;
+}
+
+.brand-logo svg {
+  width: 26px;
+  height: 26px;
+}
+
+.brand-name {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.brand-tagline {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--ink-500);
+}
+
+/* ---------- 状态卡片（配对中 / 已连接 / 配对失败） ---------- */
+
+.state-card {
+  width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+  gap: 10px;
+  padding: 28px 24px;
+  border-radius: var(--r-card);
+  background: var(--card-bg);
+  border: 1px solid var(--line-200);
+  text-align: center;
 }
-.logo svg {
-  width: 38px;
-  height: 38px;
-  fill: #fff;
+
+.state-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--chip-bg);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
 }
-h1 {
-  font-size: 22px;
+
+.state-card-title {
+  font-size: 16px;
+  line-height: 22px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-  background: linear-gradient(90deg, #818cf8, #22d3ee);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--ink-900);
 }
-.subtitle {
-  font-size: 14px;
-  color: #94a3b8;
-  margin-bottom: 28px;
-  line-height: 1.5;
+
+.state-card-hint {
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 400;
+  color: var(--ink-400);
 }
-.status-box {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 16px;
-  padding: 24px 20px;
-  margin-bottom: 20px;
+
+.state-card-icon > svg {
+  width: 24px;
+  height: 24px;
 }
-.status-icon {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  background: rgba(99, 102, 241, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+/* 三种形态：只有当前形态对应的图标可见 */
+.state-card .icon-check,
+.state-card .icon-alert {
+  display: none;
 }
-.status-icon svg {
-  width: 20px;
-  height: 20px;
-  fill: #818cf8;
-  animation: spin 1.4s linear infinite;
+
+.state-card.is-success .state-card-icon {
+  background: var(--success-100);
+  color: var(--success-600);
 }
-.status-icon.success svg {
-  animation: none;
-  fill: #34d399;
+
+.state-card.is-success .spinner {
+  display: none;
 }
-.status-icon.error svg {
-  animation: none;
-  fill: #f87171;
+
+.state-card.is-success .icon-check {
+  display: block;
 }
+
+.state-card.is-error {
+  background: var(--danger-100);
+  border-color: var(--danger-line);
+}
+
+.state-card.is-error .state-card-icon {
+  background: var(--surface-base);
+  color: var(--danger-600);
+}
+
+.state-card.is-error .spinner {
+  display: none;
+}
+
+.state-card.is-error .icon-alert {
+  display: block;
+}
+
+/* 加载环。设计稿画的是整圈品牌色；真机上必须留缺口才看得出在转，
+ * 所以拆成"浅色轨道 + 品牌色弧"，静止观感与设计稿一致。 */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--accent-track);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-.status-text {
-  font-size: 15px;
-  color: #cbd5e1;
-  margin-bottom: 6px;
-}
-.status-hint {
-  font-size: 12px;
-  color: #64748b;
-  line-height: 1.5;
-}
-.upload-area {
-  display: none;
+
+/* ---------- 完成卡片 ---------- */
+
+.done-card {
+  width: 100%;
+  display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  padding: 32px 24px;
+  border-radius: var(--r-card);
+  background: var(--success-100);
+  border: 1px solid var(--success-line);
+  text-align: center;
 }
-.upload-btn {
+
+.done-card-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: var(--surface-base);
+  color: var(--success-600);
+  display: grid;
+  place-items: center;
+}
+
+.done-card-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.done-card-title {
+  font-size: 18px;
+  line-height: 25px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.done-card-hint {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--ink-600);
+}
+
+/* ---------- 文件列表 ---------- */
+
+.file-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-card);
+  background: var(--card-bg);
+  border: 1px solid var(--line-200);
+}
+
+.file-item-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--r-chip);
+  background: var(--chip-bg);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.file-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 完成态把"文件"图标换成对勾 */
+.file-item-icon .icon-check {
+  display: none;
+}
+
+.file-item.is-done .file-item-icon .icon-file {
+  display: none;
+}
+
+.file-item.is-done .file-item-icon .icon-check {
+  display: block;
+}
+
+/* 等待中的那一项图标转灰，和"正在上传"区分开 */
+.file-item.is-waiting .file-item-icon {
+  color: var(--ink-400);
+}
+
+.file-item.is-done .file-item-icon {
+  background: var(--success-100);
+  color: var(--success-600);
+}
+
+.file-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.file-item-name {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-item-bar {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--chip-bg);
+  overflow: hidden;
+}
+
+.file-item-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.file-item.is-done .file-item-bar {
+  background: var(--success-100);
+}
+
+.file-item.is-done .file-item-bar-fill {
+  background: var(--success-600);
+}
+
+.file-item-status {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--ink-400);
+}
+
+.file-item.is-uploading .file-item-status {
+  color: var(--ink-500);
+}
+
+.file-item.is-done .file-item-status {
+  color: var(--success-600);
+}
+
+.file-item.is-error .file-item-status {
+  color: var(--danger-600);
+}
+
+/* ---------- 按钮 ---------- */
+
+.btn {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 16px 24px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-  color: #fff;
+  border: 1px solid transparent;
+  border-radius: var(--r-card);
+  font-family: inherit;
   font-size: 16px;
+  line-height: 22px;
   font-weight: 500;
   cursor: pointer;
-  border: none;
-  transition: opacity 0.2s;
+  transition: filter 0.15s;
 }
-.upload-btn:active {
-  opacity: 0.8;
-}
-.upload-btn svg {
+
+.btn-icon {
   width: 20px;
   height: 20px;
-  fill: #fff;
-}
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-.file-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 }
-.file-icon svg {
-  width: 16px;
-  height: 16px;
-  fill: #818cf8;
+
+/* 主按钮底色两套都用 brand.500（不是 --accent）：白字要够对比度 */
+.btn-primary {
+  background: var(--brand-500);
+  color: var(--on-brand);
 }
-.file-info {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
+
+/* 按下态：叠一层黑（与主应用一致的口径），不用换色 */
+.btn-primary:active {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16));
 }
-.file-name {
-  font-size: 13px;
-  color: #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
+
+.btn-secondary {
+  background: var(--surface-base);
+  border-color: var(--line-200);
+  color: var(--ink-700);
 }
-.file-progress-bar {
-  height: 4px;
-  background: rgba(99, 102, 241, 0.2);
-  border-radius: 2px;
-  overflow: hidden;
+
+.btn-secondary:active {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
 }
-.file-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #6366f1, #06b6d4);
-  border-radius: 2px;
-  transition: width 0.2s;
+
+/* ---------- 上传区 ---------- */
+
+.upload-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.file-status {
-  font-size: 11px;
-  color: #64748b;
-  margin-top: 2px;
-}
-.file-status.done {
-  color: #34d399;
-}
-.file-status.error {
-  color: #f87171;
-}
-.device-info {
+
+.upload-hint {
   font-size: 12px;
-  color: #475569;
-  margin-top: 24px;
-  line-height: 1.6;
+  line-height: 17px;
+  font-weight: 400;
+  color: var(--ink-400);
+  text-align: center;
+}
+
+/* ---------- 底部信息 ---------- */
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.meta-line {
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 400;
+  color: var(--ink-400);
+}
+
+.meta-line-dim {
+  color: var(--ink-300);
+}
+
+/* ---------- 主题切换 ---------- */
+
+/* 浮在右上角，不参与 .stack 的布局 —— 这样设计稿的垂直居中账一分不动。
+ * right 与页面 padding 对齐，正好压在内容右边界上（375 屏上即 24）。 */
+.theme-toggle {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 16px);
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-chip); /* 小控件比卡片小一档 */
+  background: var(--card-bg);
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+/* 按下态与 .btn-secondary 同口径：叠黑，不换色 */
+.theme-toggle:active {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
+}
+
+/* 三个图标只亮当前模式对应的那个。判据是 <html> 上的 data-theme，
+ * 而不是"眼下来看是深是浅" —— 跟随系统时没有 data-theme，就该显示「自动」。 */
+.theme-toggle svg {
+  display: none;
+  width: 18px;
+  height: 18px;
+}
+
+:root:not([data-theme]) .theme-toggle .icon-theme-auto {
+  display: block;
+}
+
+:root[data-theme='light'] .theme-toggle .icon-theme-light {
+  display: block;
+}
+
+:root[data-theme='dark'] .theme-toggle .icon-theme-dark {
+  display: block;
 }

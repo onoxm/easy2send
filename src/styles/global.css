@@ -1,9 +1,15 @@
 :root {
-  background-color: #f5f7fa;
+  background-color: var(--color-canvas);
+  color-scheme: light;
 }
 
+/* 主题只有一个出口：<html> 上的 dark 类（切换逻辑见 hooks/useTheme.ts）。
+ * ① 底色用 --color-canvas，而不是硬编码值 —— 原先暗色写的是 #2d3748（不在色板里、
+ *    比暗色 canvas #0f1218 亮一大截），切到暗色时露出来会与 Layout 的 bg-canvas 脱节。
+ * ② color-scheme 必须跟着切，否则暗色下滚动条与原生控件仍是浅色。 */
 :root.dark {
-  background-color: #2d3748;
+  background-color: var(--color-canvas);
+  color-scheme: dark;
 }
 
 .text {

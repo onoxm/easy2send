@@ -18,7 +18,6 @@
     "minify:web": "node scripts/minify-web.mjs"
   },
   "dependencies": {
-    "@icon-park/react": "^1.4.2",
     "@onoxm/zustand-tools": "^0.4.4",
     "@tabler/icons-react": "^3.46.0",
     "@tauri-apps/api": "^2",

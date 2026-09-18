@@ -1,19 +1,3 @@
-/**
- * Easy2Send 自绘 / 补齐图标
- *
- * 为什么需要这个文件：
- * 项目现有图标库 IconPark（@icon-park/react，2659 个图标）覆盖了本项目
- * 全部 UI 图标，唯一缺的是 Linux 平台标识 —— 所以 `pages/index.tsx` 的
- * platformIcon 里目前用 `TencentQq` 顶替 linux（那是 QQ 企鹅，不是 Linux）。
- *
- * 这里提供两个映射里用得上的图形：
- *   - Linux：Tux 平台标识，取自 Ant Design Icons（MIT）
- *   - Logo ：Easy2Send 品牌标，品牌资产，图标库不会有，自绘
- *
- * props 与 `@icon-park/react` 的 IIconProps 对齐，可直接替换进
- * platformIcon / KIND_ICON 这类映射，调用方式完全不变：
- *   <Linux {...ICON_INFO} strokeWidth={2} />
- */
 import { useId, type CSSProperties, type SVGProps } from 'react'
 
 export interface LocalIconProps extends Omit<

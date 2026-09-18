@@ -1,6 +1,6 @@
 import type { DeviceInfo } from '@/types/discovery'
 import { createStoreHook } from '@onoxm/zustand-tools'
-import { selectProperties } from 'ono-react-element'
+import { selectProperties, type ThemeType } from 'ono-react-element'
 import { create } from 'zustand'
 import {
   createJSONStorage,
@@ -10,7 +10,7 @@ import {
 } from 'zustand/middleware'
 
 const initialState = {
-  theme: 'light',
+  theme: 'system' as ThemeType,
   ip: '',
   port: 0,
   savePath: '',

@@ -26,9 +26,8 @@ import { ReactNode, useMemo } from 'react'
  */
 const CARD_HEIGHT = 92
 
-/** 卡片投影：设计稿两层 DROP_SHADOW（0 1 2 / 0 4 8 -2，同色不同透明度） */
-const CARD_SHADOW =
-  'shadow-[0_1px_2px_0_rgba(15,23,41,0.06),0_4px_8px_-2px_rgba(15,23,41,0.04)]'
+/** 卡片投影：即设计稿的 elevation-1（两层 DROP_SHADOW），走全局 token 不再内联 */
+const CARD_SHADOW = 'shadow-[var(--shadow-e1)]'
 
 const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
   file: <IconFile size={20} stroke={2} />,
@@ -193,11 +192,14 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
         </div>
       </div>
 
-      {/* 接收端完成态：打开文件 / 打开保存目录 */}
+      {/* 接收端完成态：打开文件 / 打开保存目录。
+          设计稿这两颗是「图标按钮·填充」形态（3:323 fill=surface.muted、无描边），
+          悬停叠 6% 黑遮罩 —— 所以底色要写在常驻态，不能只在 hover 时给 surface.muted
+          （那样常驻态是无底透明，等于把「填充」错当「描边」用）。 */}
       {status === 'done' && direction === 'receive' && savePath && (
         <>
           <button
-            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip text-ink-600 hover:bg-surface-muted hover:text-ink-900 cursor-pointer"
+            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip bg-surface-muted text-ink-600 state-tint hover:text-ink-900 cursor-pointer"
             title="打开文件"
             aria-label="打开文件"
             onClick={async () =>
@@ -207,7 +209,7 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
             <IconExternalLink size={15} stroke={2} />
           </button>
           <button
-            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip text-ink-600 hover:bg-surface-muted hover:text-ink-900 cursor-pointer"
+            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip bg-surface-muted text-ink-600 state-tint hover:text-ink-900 cursor-pointer"
             title="打开保存目录"
             aria-label="打开保存目录"
             onClick={() => invoke('open_file', { path: savePath })}

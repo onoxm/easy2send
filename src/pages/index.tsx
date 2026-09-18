@@ -104,13 +104,15 @@ export default () => {
   const btnList = [
     {
       text: '扫码连接',
-      className: 'bg-brand-500 text-on-brand',
+      className:
+        'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand',
       icon: <IconQrcode stroke={2} />,
       onClick: handleWebUpload
     },
     {
       text: '手动连接',
-      className: 'border border-line-200 bg-surface-base text-ink-700',
+      className:
+        'border border-line-200 bg-surface-base text-ink-700 state-neutral',
       icon: (
         <div className="text-ink-600">
           <IconLink stroke={2} />
@@ -142,7 +144,7 @@ export default () => {
 
         <Link
           to="/settings"
-          className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600"
+          className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
         >
           <IconSettings stroke={2} />
         </Link>
@@ -163,7 +165,7 @@ export default () => {
           </div>
         </div>
 
-        <div className="w-full bg-surface-base border border-line-200 rounded-lg">
+        <div className="w-full bg-surface-base border border-line-200 rounded-lg shadow-[var(--shadow-e1)]">
           <div className="w-full h-[44px] px-[14px] flex justify-between items-center">
             <p className="flex gap-[7px] items-center">
               <span className="text-card/[19px] text-ink-700 font-medium">
@@ -175,7 +177,7 @@ export default () => {
             </p>
 
             <button
-              className="w-7 h-7 bg-surface-muted flex justify-center items-center rounded-sm text-ink-600 border border-line-100"
+              className="w-7 h-7 bg-surface-muted flex justify-center items-center rounded-sm text-ink-600 border border-line-100 state-tint"
               onClick={async e => {
                 const svg = e.currentTarget.children[0]
                 svg.classList.add('loading')
@@ -210,11 +212,15 @@ export default () => {
               defer
             >
               <div className="p-2 flex flex-col gap-[6px]">
+                {/* 设备行的 chrome 正是设计稿「次按钮」的配方（白底 surface.base +
+                    line.200 描边），按按钮状态规范 43:2「白底按钮走中性色阶（悬停
+                    surface.muted / 按下 line.100）」补 state-neutral；
+                    连接期间整列不可点，按按钮禁用态的约定（整帧 opacity .5）呈现。 */}
                 {devices.map(
                   ({ deviceId, deviceName, ip, port, platform, version }) => (
                     <button
                       key={deviceId}
-                      className="w-full h-15 border border-line-200 flex items-center gap-3 px-3 justify-center rounded-md"
+                      className="w-full h-15 border border-line-200 flex items-center gap-3 px-3 justify-center rounded-md state-neutral disabled:opacity-50"
                       disabled={connecting !== null}
                       onClick={() => handleConnect(deviceId)}
                     >

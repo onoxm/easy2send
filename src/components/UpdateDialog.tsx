@@ -110,20 +110,22 @@ const UpdateDialog = ({
   const btnList = [
     {
       text: '稍后再说',
-      className: 'border border-line-200 text-ink-700',
+      className: 'border border-line-200 text-ink-700 state-neutral',
       onClick: handleCancel
     },
     {
       text: '立即更新',
+      /* ono 的 Button 默认 type=primary，自带 .ono-btn-primary:hover{opacity:.9}，
+         会在设计稿的 8% 黑遮罩之上再压一层透明度，这里用 hover:opacity-100 顶掉。 */
       className:
-        'bg-brand-500 text-on-brand shadow-[0_2px_6px_-1px_rgba(92,102,227,0.3)]',
+        'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand hover:opacity-100',
       onClick: handleConfirm
     }
   ]
 
   return (
     <TemplateDialog
-      className="w-130 min-h-69 p-6 bg-surface-base border border-line-200 rounded-card flex flex-col gap-4"
+      className="w-130 min-h-69 p-6 bg-surface-base border border-line-200 rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
       dialogClose={() => {
         if (!loading) handleCancel()
       }}

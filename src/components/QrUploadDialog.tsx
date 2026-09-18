@@ -77,7 +77,7 @@ const QrUploadDialog = ({
 
   return (
     <TemplateDialog
-      className="flex flex-col items-center gap-5 bg-surface-base p-7 rounded-card w-140"
+      className="flex flex-col items-center gap-5 bg-surface-base p-7 rounded-card shadow-[var(--shadow-e3)] w-140"
       dialogClose={handleClose}
       onContextMenu={e => e.preventDefault()}
       animation={{ type: 'fade', startPosition: '30%' }}
@@ -94,7 +94,7 @@ const QrUploadDialog = ({
           </div>
           {qrcode ? (
             <>
-              <div className="border border-line-200 rounded-card overflow-hidden">
+              <div className="border border-line-200 rounded-card shadow-[var(--shadow-e1)] overflow-hidden">
                 <img src={qrcode} alt="二维码" />
               </div>
               <div className="w-full flex flex-col gap-[5px] px-3 py-2.5 bg-surface-muted rounded-control text-left">
@@ -130,7 +130,7 @@ const QrUploadDialog = ({
             </div>
           )}
           <button
-            className="w-full h-[38px] text-ink-700 border border-line-200 rounded-control text-card/[19px]"
+            className="w-full h-[38px] text-ink-700 border border-line-200 rounded-control text-card/[19px] state-neutral"
             onClick={enhancedDialogClose}
           >
             取消

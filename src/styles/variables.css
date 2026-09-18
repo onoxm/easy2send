@@ -52,6 +52,25 @@
   --radii-card: 14px;
   --radii-pill: 999px;
 
+  /* 阴影 · 对应设计规范「03 圆角与阴影」的阴影层级区间（3:539）与
+   * 「05 组件与状态 · 按钮状态」的规则说明（43:2）。
+   * 三级 elevation：e1 卡片 / e2 浮层 / e3 弹窗；
+   * 另有主按钮、分段选中滑块、输入框聚焦三处单点投影。
+   *
+   * 全部取设计稿的原始数值，不做「近似到 Tailwind 内置档」的收敛 —— 设计稿的
+   * 阴影色不是纯黑而是 rgba(15,23,41)（= ink.900 的色相），换掉会在浅色底上
+   * 偏灰。明暗两主题共用同一组值（设计稿暗色稿未另给阴影）。
+   *
+   * 命名用 --shadow-* 是安全的：uno.config.ts 没有 theme.boxShadow（也没有
+   * theme.shadow）分组，不会出现 --radii-* 那种同命名空间自引用，详见下方圆角注释。 */
+  --shadow-e1:
+    0 1px 2px 0 rgba(15, 23, 41, 0.06), 0 4px 8px -2px rgba(15, 23, 41, 0.04);
+  --shadow-e2: 0 6px 16px -4px rgba(15, 23, 41, 0.08);
+  --shadow-e3: 0 24px 48px -12px rgba(15, 23, 41, 0.18);
+  --shadow-brand: 0 2px 6px -1px rgba(92, 102, 227, 0.3);
+  --shadow-segment: 0 1px 3px 0 rgba(15, 23, 41, 0.1);
+  --shadow-focus: 0 0 4px 0 rgba(92, 102, 227, 0.18);
+
   /* 字阶 · 对应设计规范「02 字体」五级
    * 经 uno.config.ts 的 theme.text 暴露为 text-title / text-section /
    * text-card / text-body / text-caption（仅含 font-size 与 line-height，

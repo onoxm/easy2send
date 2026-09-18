@@ -360,7 +360,7 @@ export default () => {
       <div className="h-full flex flex-col w-[92%] gap-[14px]">
         <div className="flex gap-3 items-center">
           <button
-            className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0"
+            className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0 state-neutral"
             onClick={handleBack}
           >
             <span className="text-ink-600">
@@ -389,7 +389,7 @@ export default () => {
             </div>
           </div>
 
-          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[17px] font-medium py-[7.5px] px-3">
+          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[17px] font-medium py-[7.5px] px-3 state-neutral">
             断开连接
           </button>
         </div>
@@ -399,7 +399,11 @@ export default () => {
             list={tabList}
             className="bg-line-100 border border-line-200 flex gap-[3px] p-[3px] rounded-md"
             currentIndex={tabList.findIndex(t => t.type === activeTab)}
-            slider={Slider => <Slider className="bg-surface-base rounded-md" />}
+            slider={Slider => (
+              /* 选中滑块单独带一档投影（设计稿 3:154 / 3:631：0 1 3 rgba(15,23,41,.10)），
+                 与卡片 e1 不同源，所以另立一个令牌。 */
+              <Slider className="bg-surface-base rounded-md shadow-[var(--shadow-segment)]" />
+            )}
           >
             {({ item: { type, txt, icon }, isActive }) => (
               <button
@@ -424,7 +428,7 @@ export default () => {
             )}
           </AutoSliderList>
 
-          <button className="bg-surface-base flex items-center border border-line-200 gap-[7px] rounded-md py-[8.5px] px-3.5">
+          <button className="bg-surface-base flex items-center border border-line-200 gap-[7px] rounded-md py-[8.5px] px-3.5 state-neutral">
             <span className="text-ink-600">
               <IconFolder size={15} stroke={2} />
             </span>

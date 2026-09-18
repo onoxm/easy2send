@@ -20,19 +20,20 @@ const ManualLinkDialogBox = ({
   const btnList = [
     {
       text: '取消',
-      className: 'border border-line-200 text-ink-700',
+      className: 'border border-line-200 text-ink-700 state-neutral',
       onClick: (close: () => void) => close()
     },
     {
       text: '连接',
-      className: 'bg-brand-500 text-on-brand',
+      className:
+        'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand',
       onClick: (close: () => void) => handleConnect(manualAddr, close)
     }
   ]
 
   return (
     <TemplateDialog
-      className="w-110 h-[257px] p-7 bg-surface-base rounded-card flex flex-col gap-4"
+      className="w-110 h-[257px] p-7 bg-surface-base rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
       dialogClose={destroy}
       onContextMenu={e => e.preventDefault()}
       animation={{ type: 'fade', startPosition: '30%' }}
@@ -49,10 +50,11 @@ const ManualLinkDialogBox = ({
           </div>
           <div className="flex flex-col gap-2">
             <p className="text-ink-700 text-card/[19px]">对方地址</p>
+            {/* 聚焦态按设计稿 3:600：描边 line.200 → brand.500 且线宽 1 → 1.5，外加外发光 */}
             <input
               type="text"
               placeholder="如 192.168.1.9:8234"
-              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200 outline-none"
+              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200 outline-none state-focus"
               value={manualAddr}
               onChange={e => setManualAddr(e.target.value)}
               onKeyDown={e => {

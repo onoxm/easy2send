@@ -1,5 +1,6 @@
 import { setDeviceName } from '@/api/discovery'
 import { windowBasicOperation } from '@/api/tauri'
+import { Tip } from '@/components'
 import useStore from '@/store'
 import { IconArrowLeft, IconEdit, IconFolder } from '@tabler/icons-react'
 import { invoke } from '@tauri-apps/api/core'
@@ -82,15 +83,18 @@ export default () => {
             className="input bg-surface-muted text-ink-600 text-body/[17px] flex-1 cursor-default"
           />
           {savePathBtnList.map(({ txt, icon, onClick }) => (
-            <button
-              key={txt}
-              title={txt}
-              aria-label={txt}
-              className="border border-line-200 p-2.25 rounded-md text-ink-600 shrink-0"
-              onClick={onClick}
-            >
-              {icon}
-            </button>
+            /* 设计规范「08 悬浮说明 · 图标按钮提示」（65:7）正是用「打开文件夹 /
+               更改保存路径」这两个气泡演示图标按钮的悬停提示，所以原生 title
+               换成气泡 —— 浏览器原生提示跟设计稿的气泡是两回事 */
+            <Tip key={txt} content={txt}>
+              <button
+                aria-label={txt}
+                className="border border-line-200 p-2.25 rounded-md text-ink-600 shrink-0 state-neutral"
+                onClick={onClick}
+              >
+                {icon}
+              </button>
+            </Tip>
           ))}
         </>
       )
@@ -121,12 +125,13 @@ export default () => {
     {
       title: '设备别名',
       children: (
+        /* 聚焦态按设计稿 3:600：描边 line.200 → brand.500 且线宽 1 → 1.5，外加外发光 */
         <input
           type="text"
           value={deviceName}
           maxLength={32}
           placeholder="其他设备看到的名字（1-32 字符，不含点号）"
-          className="input border border-line-200 text-ink-900 text-card/[19px] flex-1"
+          className="input border border-line-200 text-ink-900 text-card/[19px] flex-1 state-focus"
           onChange={e => useStore.setState({ deviceName: e.target.value })}
           onBlur={async () => {
             try {
@@ -158,14 +163,25 @@ export default () => {
             }
           />
           {canUpdate && (
-            <Button loading={downloading} onClick={handleUpdate}>
+            /* ono 的 Button 默认 type=primary，底是它自己的蓝 #409eff、圆角 4、
+               padding 4/15、字号 16 —— 与设计稿的主按钮（brand.500 · 圆角 10 ·
+               高 36 · 13 Medium · 品牌投影）全不沾边，所以逐项覆盖。
+               hover:opacity-100 用来顶掉 .ono-btn-primary:hover{opacity:.9}：
+               它会叠在设计稿的 8% 黑遮罩之上，等于多压一层透明度。 */
+            <Button
+              loading={downloading}
+              onClick={handleUpdate}
+              className="px-4 py-[8.5px] text-card/[19px] rounded-control bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand hover:opacity-100"
+            >
               更新软件
             </Button>
           )}
         </>
       ),
+      /* 气泡的内边距已由气泡本体提供（.ono-popover-content 自带 12px/16px），
+         这里再叠一层 py-2.5 px-3 会变成双份内边距，所以只保留文字样式。 */
       help: (
-        <p className="py-2.5 px-3 text-ink-600 text-caption/[16px] font-normal">
+        <p className="text-ink-600 text-caption/[16px] font-normal">
           开启后自动检查新版本；右侧按钮在有可用更新时出现
         </p>
       )
@@ -176,7 +192,7 @@ export default () => {
     <div className="w-full flex flex-col gap-3 py-5 px-7 bg-canvas">
       <div className="flex items-center gap-3">
         <button
-          className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0 state-neutral"
           onClick={handleBack}
         >
           <span className="text-ink-600">

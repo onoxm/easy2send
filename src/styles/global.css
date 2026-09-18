@@ -22,6 +22,113 @@
   @apply px-[11px] py-[8.5px] rounded-md font-normal outline-none;
 }
 
+/* ------------------------------------------------------------------
+ * 交互态 · 由设计稿「05 组件与状态 · 按钮状态」的规则说明（43:2）导出：
+ *   「白底按钮走中性色阶（悬停 surface.muted / 按下 line.100）；
+ *     品牌底与浅色底叠黑色遮罩（8% / 16% 与 6% / 12%）；明暗两主题共用同值」
+ *
+ * 按「默认底色」分三类，调用处只要叠一个类名即可，不用关心具体色值：
+ *   .state-neutral — 白底描边类（次按钮 / 图标按钮·描边 / 分段外框）
+ *   .state-brand   — 品牌底（主按钮 / 图标按钮·主色）
+ *   .state-tint    — 浅色底（图标按钮·填充=surface.muted / 危险按钮=danger.100）
+ *
+ * 遮罩刻意用 background-image 叠渐变、而不是直接改 background-color：
+ * 调用处已经写了 bg-brand-500 / bg-surface-muted / bg-danger-100，改 background-color
+ * 就得在这里复刻一遍完整色板（还要跟暗色主题对齐）；而 background-image 天然画在
+ * background-color 之上，与任何底色类都能共存。
+ *
+ * 这三组是普通 CSS 类（不进 @layer）。产物里只有 ono 的样式进了 @layer
+ * （ono-components / ono-reset），Uno 工具类是完全不分层的 —— 未分层规则按 CSS 规范
+ * 一律压过分层规则，与特异性无关。所以这里既能盖过调用处的 bg-*（(0,2,0) > (0,1,0)），
+ * 也能盖过 ono 组件样式。
+ * 副作用：不要再给同一元素叠 hover:bg-*，那会与这里的 :hover 打架。 */
+.state-neutral:hover {
+  background-color: var(--color-surface-muted);
+}
+.state-neutral:active {
+  background-color: var(--color-line-100);
+}
+
+.state-brand:hover {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08));
+}
+.state-brand:active {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16));
+}
+
+.state-tint:hover {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
+}
+.state-tint:active {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12));
+}
+
+/* 输入框聚焦态 · 设计规范「05 组件与状态」的「输入框 · 聚焦」（3:600）：
+ * 描边 line.200 → brand.500，且线宽 1 → 1.5，外加 brand.500 @18% 的外发光。
+ *
+ * ⚠️ 加粗的那 0.5px 用**外圈 box-shadow** 画，绝不去改 border-width：
+ *   border-width 是参与布局的。「高度自适应」的输入框（如设置页的设备别名，只有
+ *   .input 的 padding、没有固定高）改 1 → 1.5px 会整体长高 1px，聚焦/失焦来回切换
+ *   就把下方内容顶得一跳 —— 即用户报的「抖动」。
+ *   更阴的是它**只在能表示 1.5px 的 DPI 下出现**：1x 屏上 Chrome 会把边框吸附到设备
+ *   像素，1.5px 塌成 1px，测出来毫无变化（所以 1x 下的截图验证会漏掉它）。
+ *   box-shadow 不参与布局，且在 2x 下同样是实打实的 1.5px，视觉与设计稿一致。
+ *
+ * 也不写成 focus:border-[1.5px] 这类任意值：presetWind4 会把它解析成 border-COLOR
+ * （产物是 color-mix(in oklab, 1.5px …) 这种废值），线宽根本不会变。 */
+.state-focus:focus {
+  border-color: var(--color-brand-500);
+  box-shadow:
+    0 0 0 0.5px var(--color-brand-500),
+    var(--shadow-focus);
+}
+
+/* ------------------------------------------------------------------
+ * 悬浮说明气泡 · 对齐设计规范「08 悬浮说明」的规格说明（65:40–65:44）与
+ * 示例节点「气泡 · 说明」65:27 / 「气泡 · 短文本」65:45：
+ *   底色 surface.base · 描边 line.200 1px · 圆角 radius.md(10) · 阴影 e2 ·
+ *   文字 11 Regular ink.600 · 不加箭头 · 悬停 300ms 后淡入
+ *   内边距：短文本 12 × 8（气泡跟着内容收）／长文本 12 × 10（固定 240 宽逼出换行）
+ *
+ * ono 的 Popover 有两处与设计稿冲突，且都没有 props 可改，只能在这里按类覆盖：
+ *   ① className 落在最外层 .ono-popover-base.ono-popover 上，而真正的“气泡皮肤”
+ *      是内层 .ono-popover-wrapper（自带 box-shadow: 0 4px 12px #00000026、圆角 8、
+ *      font-size 14）—— 不中和就会出现「设计稿 e2 + ono 默认」两层阴影叠在一起。
+ *   ② 内容内边距写死在 .ono-popover-content（12px 16px）。
+ * 另：.ono-popover 自带 min-width: 177px，会让短文本气泡收不回来，这里归零；
+ *     .ono-popover-base 的 max-width: 300px 按设计稿收到 240。 */
+
+.tooltip-bubble {
+  min-width: 0;
+  max-width: 240px;
+  padding: 0;
+  background-color: var(--color-surface-base);
+  border: 1px solid var(--color-line-200);
+  border-radius: var(--radii-control);
+  box-shadow: var(--shadow-e2);
+  color: var(--color-ink-600);
+  font-size: var(--font-size-caption);
+}
+
+.tooltip-bubble .ono-popover-wrapper {
+  border-radius: inherit;
+  box-shadow: none;
+  font-size: inherit;
+}
+
+.tooltip-bubble .ono-popover-content {
+  padding: 8px 12px;
+}
+
+/* 长文本：固定 240 宽把文字逼出换行，内边距换成 12 × 10 */
+.tooltip-bubble-wide {
+  width: 240px;
+}
+
+.tooltip-bubble-wide .ono-popover-content {
+  padding: 10px 12px;
+}
+
 .scroll_vertical {
   @apply scroll-smooth;
 }

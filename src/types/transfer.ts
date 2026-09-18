@@ -25,4 +25,8 @@ export interface TransferTask {
   entryIndex?: number
   entryCount?: number
   createdAt: number
+  /** 真正开始传输的时刻（排队结束），用于算「用时」 */
+  startedAt?: number
+  /** 传输结束的时刻（完成或失败） */
+  finishedAt?: number
 }

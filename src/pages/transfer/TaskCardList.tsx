@@ -1,12 +1,13 @@
-import { ICON_INFO } from '@/common/common'
 import useStore from '@/store'
+import { TaskStatus, TransferTask } from '@/types/transfer'
 import {
-  FileSuccessOne,
-  FolderClose,
-  FolderOpen,
-  Send,
-  Zip
-} from '@icon-park/react'
+  IconExternalLink,
+  IconFile,
+  IconFileUnknown,
+  IconFileZip,
+  IconFolder,
+  IconFolderOpen
+} from '@tabler/icons-react'
 import { invoke } from '@tauri-apps/api/core'
 import { join } from '@tauri-apps/api/path'
 import {
@@ -16,21 +17,24 @@ import {
   formatFileSize
 } from 'ono-react-element'
 import { ReactNode, useMemo } from 'react'
-import { TaskStatus, TransferTask } from '@/types/transfer'
+
+/**
+ * 卡片固定高度，对齐设计稿的 height:92。
+ * 它同时是虚拟列表的 itemSize —— 每行 <li> 的高度会被强制设成这个值，
+ * 写小了卡片会溢出压住下一行，所以卡片高度与 itemSize 必须同源。
+ * 列表行距 = 92 + gap 10 = 102（设计稿任务列表 gap:10）。
+ */
+const CARD_HEIGHT = 92
+
+/** 卡片投影：设计稿两层 DROP_SHADOW（0 1 2 / 0 4 8 -2，同色不同透明度） */
+const CARD_SHADOW =
+  'shadow-[0_1px_2px_0_rgba(15,23,41,0.06),0_4px_8px_-2px_rgba(15,23,41,0.04)]'
 
 const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
-  file: <FileSuccessOne {...ICON_INFO} strokeWidth={2} />,
-  folder: <FolderClose {...ICON_INFO} strokeWidth={2} />,
-  batch: <Zip {...ICON_INFO} strokeWidth={2} />,
-  unknown: <Send {...ICON_INFO} strokeWidth={2} />
-}
-
-// 左侧状态 accent 条颜色
-const STATUS_ACCENT: Record<TaskStatus, string> = {
-  queued: 'bg-gray-300',
-  running: 'bg-indigo-500',
-  done: 'bg-green-500',
-  error: 'bg-red-500'
+  file: <IconFile size={20} stroke={2} />,
+  folder: <IconFolder size={20} stroke={2} />,
+  batch: <IconFileZip size={20} stroke={2} />,
+  unknown: <IconFileUnknown size={20} stroke={2} />
 }
 
 const statusText: Record<TaskStatus, string> = {
@@ -40,11 +44,33 @@ const statusText: Record<TaskStatus, string> = {
   error: '失败'
 }
 
+/** 徽标配色。排队中用的是 line.100，色板里没有 ink.100（写了不生效、徽标会变透明） */
 const statusColor: Record<TaskStatus, string> = {
-  queued: 'bg-gray-200 text-gray-700',
-  running: 'bg-indigo-100 text-indigo-700',
-  done: 'bg-green-100 text-green-700',
-  error: 'bg-red-100 text-red-700'
+  queued: 'bg-line-100 text-ink-500',
+  running: 'bg-brand-100 text-brand-700',
+  done: 'bg-success-100 text-success-600',
+  error: 'bg-danger-100 text-danger-600'
+}
+
+/** 排队中的进度条是空轨道（设计稿未画填充） */
+const statusProgressColor: Record<TaskStatus, string> = {
+  queued: '',
+  running: 'bg-brand-500',
+  done: 'bg-success-600',
+  error: 'bg-danger-600'
+}
+
+const size = (bytes: number) => formatFileSize(bytes, { decimalPlaces: 1 })
+
+/** 用时：mm:ss，超过 1 小时补上小时段 */
+const formatDuration = (ms: number) => {
+  const sec = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(sec / 3600)
+  const mm = Math.floor((sec % 3600) / 60)
+    .toString()
+    .padStart(2, '0')
+  const ss = (sec % 60).toString().padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
 }
 
 const TaskCard = ({ task }: { task: TransferTask }) => {
@@ -59,7 +85,9 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
     kind,
     errorMessage,
     entryIndex,
-    entryCount
+    entryCount,
+    startedAt,
+    finishedAt
   } = task
   const savePath = useStore('savePath')
 
@@ -76,103 +104,118 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
       : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }, [status, speed, total, sent])
 
+  // 元信息行固定「主信息 + 副信息」两段；错误信息与副信息同段（danger 色），不再另起一行
+  let primaryText = ''
+  let secondaryText = ''
+  if (status === 'queued') {
+    primaryText = total > 0 ? size(total) : ''
+    secondaryText = '等待空闲通道'
+  } else if (status === 'running') {
+    primaryText = `${size(sent)}${total ? ` / ${size(total)}` : ''} · ${percent.toFixed(1)}%`
+    secondaryText = `${size(speed)}/s · 剩余 ${eta}`
+    if (entryIndex !== undefined && entryCount !== undefined) {
+      secondaryText += ` · 条目 ${entryIndex}/${entryCount}`
+    }
+  } else if (status === 'done') {
+    primaryText = entryCount
+      ? `${entryCount} 个文件 · ${size(total)}`
+      : `${size(total)} · ${percent >= 100 ? '100' : percent.toFixed(1)}%`
+    secondaryText =
+      startedAt && finishedAt
+        ? `用时 ${formatDuration(finishedAt - startedAt)}`
+        : ''
+  } else {
+    primaryText = `${size(total)} · 已中断`
+    secondaryText = errorMessage ?? ''
+  }
+
   return (
     <div
       className={chainClassNames(
-        'h-[84px] bg-white rounded-lg shadow-sm border border-gray-200 p-3 relative overflow-hidden',
-        status === 'done' && direction === 'receive'
-          ? 'bg-green-50/30'
-          : status === 'error'
-            ? 'bg-red-50/30'
-            : ''
+        'w-full bg-surface-base flex items-center gap-[14px] px-4 rounded-control border border-line-200',
+        CARD_SHADOW
       )}
+      style={{ height: CARD_HEIGHT }}
     >
-      {/* 左侧状态 accent 条 */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 ${STATUS_ACCENT[status]}`}
-      />
-      <div className="flex items-center gap-3 pl-1">
-        <div className="p-2 rounded-lg bg-gray-50 text-gray-600 shrink-0">
-          {KIND_ICON[kind]}
+        className={chainClassNames(
+          'w-10 h-10 shrink-0 flex justify-center items-center rounded-control',
+          status === 'error'
+            ? 'bg-danger-100 text-danger-600'
+            : 'bg-surface-muted text-ink-600'
+        )}
+      >
+        {KIND_ICON[kind]}
+      </div>
+
+      <div className="flex-1 min-w-0 flex flex-col gap-[9px]">
+        <div className="flex justify-between items-center gap-[10px] text-ink-900 text-card/[19px]">
+          <p className="truncate font-medium text-ink-900" title={name}>
+            {name}
+          </p>
+          <div
+            className={chainClassNames(
+              'shrink-0 py-.5 px-2 rounded-pill text-caption/4 font-medium',
+              statusColor[status]
+            )}
+          >
+            {status === 'running' && direction === 'receive'
+              ? '接收中'
+              : statusText[status]}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="truncate font-medium text-gray-800" title={name}>
-              {name}
-            </div>
+
+        <div className="h-[5px] w-full bg-line-100 rounded-pill overflow-hidden">
+          <div
+            className={chainClassNames(
+              'h-full transition-all duration-200 rounded-pill',
+              statusProgressColor[status]
+            )}
+            style={{ width: `${percent.toFixed(2)}%` }}
+          />
+        </div>
+
+        <div className="flex items-center gap-x-3 text-caption/4">
+          {primaryText && (
+            <span className="shrink-0 text-ink-400">{primaryText}</span>
+          )}
+          {secondaryText && (
             <span
-              className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${statusColor[status]}`}
-            >
-              {statusText[status]}
-            </span>
-          </div>
-
-          <div className="h-1.5 w-full bg-gray-100 rounded overflow-hidden mb-2">
-            <div
               className={chainClassNames(
-                'h-full transition-all duration-200 rounded',
-                status === 'error'
-                  ? 'bg-red-400'
-                  : status === 'done'
-                    ? 'bg-green-600'
-                    : 'bg-indigo-500'
+                'truncate',
+                status === 'error' ? 'text-danger-600' : 'text-ink-500'
               )}
-              style={{ width: `${percent.toFixed(2)}%` }}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
-            <span>
-              {formatFileSize(sent, { decimalPlaces: 1 })}{' '}
-              {total ? `/ ${formatFileSize(total, { decimalPlaces: 1 })}` : ''}
-            </span>
-            <span>{percent.toFixed(1)}%</span>
-            {status === 'running' && speed >= 0 && (
-              <span>{formatFileSize(speed, { decimalPlaces: 1 })}/s</span>
-            )}
-            {status === 'running' && <span>剩余 {eta}</span>}
-            {entryIndex !== undefined && entryCount !== undefined && (
-              <span className="text-gray-400">
-                条目 {entryIndex}/{entryCount}
-              </span>
-            )}
-          </div>
-
-          {status === 'error' && errorMessage && (
-            <div
-              className="mt-1 text-xs text-red-600 truncate"
-              title={errorMessage}
+              title={secondaryText}
             >
-              {errorMessage}
-            </div>
+              {secondaryText}
+            </span>
           )}
         </div>
+      </div>
 
-        {status === 'done' && direction === 'receive' && savePath && (
+      {/* 接收端完成态：打开文件 / 打开保存目录 */}
+      {status === 'done' && direction === 'receive' && savePath && (
+        <>
           <button
-            className="shrink-0 p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
+            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip text-ink-600 hover:bg-surface-muted hover:text-ink-900 cursor-pointer"
             title="打开文件"
             aria-label="打开文件"
             onClick={async () =>
               invoke('open_file', { path: await join(savePath, name) })
             }
           >
-            <FileSuccessOne {...ICON_INFO} strokeWidth={2} />
+            <IconExternalLink size={15} stroke={2} />
           </button>
-        )}
-
-        {/* 接收端完成态：打开保存目录 */}
-        {status === 'done' && direction === 'receive' && savePath && (
           <button
-            className="shrink-0 p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
+            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip text-ink-600 hover:bg-surface-muted hover:text-ink-900 cursor-pointer"
             title="打开保存目录"
             aria-label="打开保存目录"
             onClick={() => invoke('open_file', { path: savePath })}
           >
-            <FolderOpen {...ICON_INFO} strokeWidth={2} />
+            <IconFolderOpen size={15} stroke={2} />
           </button>
-        )}
-      </div>
+        </>
+      )}
     </div>
   )
 }
@@ -188,18 +231,13 @@ export const TaskCardList = ({
   )
 
   return (
-    <div
-      className={chainClassNames(
-        'mt-2 rounded-lg border border-dashed border-gray-300 bg-gray-50/40 h-[calc(100%-40px)]',
-        visibleTasks.length > 0 ? 'cursor-default' : 'cursor-pointer'
-      )}
-    >
+    <div className="h-[calc(100%-122px)]">
       <FixedVirtualList
-        wrapperClassName="gap-2 p-3"
+        wrapperClassName="gap-[10px]"
         containerClassName="scroll_vertical"
         dataSource={dataSource}
         overscan={5}
-        itemSize={84}
+        itemSize={CARD_HEIGHT}
       />
     </div>
   )

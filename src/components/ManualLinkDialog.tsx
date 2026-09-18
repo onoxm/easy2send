@@ -52,11 +52,12 @@ const ManualLinkDialogBox = ({
             <input
               type="text"
               placeholder="如 192.168.1.9:8234"
-              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200"
+              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200 outline-none"
               value={manualAddr}
-              onChange={e => {
-                console.log(e.target.value)
-                setManualAddr(e.target.value)
+              onChange={e => setManualAddr(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter')
+                  handleConnect(manualAddr, enhancedDialogClose)
               }}
             />
             <p className="text-ink-500 text-caption/[16px]">

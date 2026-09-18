@@ -4,15 +4,19 @@ import {
   type TransferTaskSeed
 } from '@/api/fs'
 import { stopWebUpload } from '@/api/webupload'
-import { ICON_INFO } from '@/common/common'
-import { PlatformIcon } from '@/components'
+import { Layout, PlatformIcon } from '@/components'
 import { useNotification, useQuery, useTauriDrag } from '@/hooks'
 import useStore from '@/store'
 import { TransferTask, TransferType } from '@/types/transfer'
-import { Back, Receive, Send } from '@icon-park/react'
+import {
+  IconArrowBarToDown,
+  IconArrowLeft,
+  IconArrowUp,
+  IconFolder
+} from '@tabler/icons-react'
 import { Event, listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
-import { chainClassNames } from 'ono-react-element'
+import { AutoSliderList, chainClassNames } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { EmptyPanel } from './EmptyPanel'
@@ -35,20 +39,12 @@ export default () => {
     {
       type: 'send' as const,
       txt: '发送任务',
-      icon: (bl: boolean) => (
-        <Send {...ICON_INFO} fill={bl ? '#6366f1' : '#333'} strokeWidth={2} />
-      )
+      icon: <IconArrowUp stroke={2} />
     },
     {
       type: 'receive' as const,
       txt: '接收任务',
-      icon: (bl: boolean) => (
-        <Receive
-          {...ICON_INFO}
-          fill={bl ? '#6366f1' : '#333'}
-          strokeWidth={2}
-        />
-      )
+      icon: <IconArrowBarToDown stroke={2} />
     }
   ]
 
@@ -75,6 +71,14 @@ export default () => {
           errorMessage: patch.errorMessage ?? old?.errorMessage,
           entryIndex: patch.entryIndex ?? old?.entryIndex,
           entryCount: patch.entryCount ?? old?.entryCount,
+          // 只在第一次进入 running / 结束态时打点，卡片用它算「用时」
+          startedAt:
+            old?.startedAt ?? (patch.status === 'running' ? now : undefined),
+          finishedAt:
+            old?.finishedAt ??
+            (patch.status === 'done' || patch.status === 'error'
+              ? now
+              : undefined),
           createdAt: old?.createdAt ?? now
         }
       }
@@ -352,70 +356,82 @@ export default () => {
     .sort((a, b) => a.createdAt - b.createdAt)
 
   return (
-    <div className="h-[calc(100%-28px)] flex flex-col p-5 mx-auto w-[92%]">
-      <div className="flex justify-between items-center mb-4">
-        <button
-          className="flex items-center gap-2 p-2 border border-solid border-[#333] rounded-[30px] hover:bg-gray-50"
-          onClick={handleBack}
-        >
-          <Back {...ICON_INFO} strokeWidth={2} />
-          <span>返回首页</span>
-        </button>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          {connectedDevice.deviceId === 'web-upload' ? (
-            <>
-              <span className="text-xl">
-                <PlatformIcon platform={connectedDevice.platform} size={20} />
-              </span>
-              <span className="truncate max-w-[260px]">
-                {connectedDevice.deviceName} (http://{ip}:{port})
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-xl">
-                <PlatformIcon platform={connectedDevice.platform} size={20} />
-              </span>
-              <span className="truncate max-w-[260px]">
-                {connectedDevice.deviceName} ({connectedDevice.ip}:
-                {connectedDevice.port})
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+    <Layout>
+      <div className="h-full flex flex-col w-[92%] gap-[14px]">
+        <div className="flex gap-3 items-center">
+          <button
+            className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0"
+            onClick={handleBack}
+          >
+            <span className="text-ink-600">
+              <IconArrowLeft size={14} stroke={2} />
+            </span>
+            <span className="text-ink-700 text-body/[17px] font-medium">
+              返回
+            </span>
+          </button>
 
-      <div className="h-[calc(100%-58px)] flex flex-col">
-        <div className="flex gap-1 border-b border-gray-200">
-          {tabList.map(({ type, txt, icon }) => (
-            <button
-              key={type}
-              className={chainClassNames(
-                'items-center gap-2 px-4 py-2 -mb-px border-b-2 transition disabled:cursor-not-allowed',
-                activeTab === type
-                  ? 'border-indigo-500 text-indigo-600 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700',
-                type === 'send' &&
-                  activeTab === 'receive' &&
-                  connectedDevice.platform === 'web'
-                  ? 'hidden'
-                  : 'flex'
-              )}
-              onClick={() => setActiveTab(type)}
-            >
-              {icon(activeTab === type)}
-              <span>{txt}</span>
-              {Object.values(tasks).filter(t => t.direction === type).length >
-                0 && (
-                <span className="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full min-w-[22px] text-center">
-                  {
-                    Object.values(tasks).filter(t => t.direction === type)
-                      .length
-                  }
-                </span>
-              )}
-            </button>
-          ))}
+          <div className="flex-1 flex flex-col gap-.75">
+            <div className="flex items-center gap-[7px] text-ink-900">
+              <PlatformIcon platform={connectedDevice.platform} size={16} />
+              <span className="text-[14px]/5">
+                {connectedDevice.deviceName}
+              </span>
+            </div>
+            <div className="flex items-center gap-[6px]">
+              <div className="w-[6px] h-[6px] rounded-full bg-success-600"></div>
+              <p className="text-caption/4 text-ink-400 font-normal">
+                已连接 ·{' '}
+                {connectedDevice.deviceId === 'web-upload'
+                  ? `http://${ip}:${port}`
+                  : `${connectedDevice.ip}:${connectedDevice.port}`}
+              </p>
+            </div>
+          </div>
+
+          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[17px] font-medium py-[7.5px] px-3">
+            断开连接
+          </button>
+        </div>
+
+        <div className="flex justify-between">
+          <AutoSliderList
+            list={tabList}
+            className="bg-line-100 border border-line-200 flex gap-[3px] p-[3px] rounded-md"
+            currentIndex={tabList.findIndex(t => t.type === activeTab)}
+            slider={Slider => <Slider className="bg-surface-base rounded-md" />}
+          >
+            {({ item: { type, txt, icon }, isActive }) => (
+              <button
+                className={chainClassNames(
+                  'flex items-center gap-[7px] h-8 px-3.5',
+                  isActive ? 'text-ink-900' : 'text-ink-500'
+                )}
+                onClick={() => setActiveTab(type)}
+              >
+                {icon}
+                <span className="text-body/[17px]">{txt}</span>
+                {Object.values(tasks).filter(t => t.direction === type).length >
+                  0 && (
+                  <span className="text-[10px]/[14px] bg-brand-100 text-brand-700 rounded-full min-w-[22px] min-h-[22px] flex items-center justify-center">
+                    {
+                      Object.values(tasks).filter(t => t.direction === type)
+                        .length
+                    }
+                  </span>
+                )}
+              </button>
+            )}
+          </AutoSliderList>
+
+          <button className="bg-surface-base flex items-center border border-line-200 gap-[7px] rounded-md py-[8.5px] px-3.5">
+            <span className="text-ink-600">
+              <IconFolder size={15} stroke={2} />
+            </span>
+            <span className="text-ink-700 text-card/[19px] font-medium">
+              打开保存目录
+            </span>
+          </button>
         </div>
 
         {visibleTasks.length === 0 ? (
@@ -424,6 +440,6 @@ export default () => {
           <TaskCardList visibleTasks={visibleTasks} />
         )}
       </div>
-    </div>
+    </Layout>
   )
 }

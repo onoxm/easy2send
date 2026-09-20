@@ -33,9 +33,9 @@ const THEME_LABEL: Record<ThemeType, string> = {
 
 /** 图标跟着当前模式走：对比度=跟随系统，太阳=浅色，月亮=深色 */
 const ThemeIcon = ({ theme }: { theme: ThemeType }) => {
-  if (theme === 'light') return <IconSun stroke={2} />
-  if (theme === 'dark') return <IconMoon stroke={2} />
-  return <IconContrast stroke={2} />
+  if (theme === 'light') return <IconSun size={20} stroke={2} />
+  if (theme === 'dark') return <IconMoon size={20} stroke={2} />
+  return <IconContrast size={20} stroke={2} />
 }
 
 export default () => {
@@ -153,7 +153,7 @@ export default () => {
           {/* 三态循环：跟随系统 → 浅色 → 深色（切换逻辑见 hooks/useTheme.ts） */}
           <button
             type="button"
-            className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
+            className="little_btn p-1.5 bg-surface-base state-neutral"
             title={`主题：${THEME_LABEL[theme]}`}
             aria-label={`主题：${THEME_LABEL[theme]}，点击切换`}
             onClick={cycleTheme}
@@ -163,23 +163,23 @@ export default () => {
 
           <Link
             to="/settings"
-            className="w-8 h-8 rounded-md bg-surface-base border border-line-200 flex justify-center items-center text-ink-600 state-neutral"
+            className="little_btn p-1.5 bg-surface-base state-neutral"
           >
-            <IconSettings stroke={2} />
+            <IconSettings size={20} stroke={2} />
           </Link>
         </div>
       </div>
 
       <div className="w-[480px] flex flex-col gap-[18px]">
         <div className="flex flex-col gap-[5px]">
-          <h1 className="text-ink-900 text-[19px]/[28px] font-bold">
+          <h1 className="text-ink-900 text-4.75/[28px] font-bold">
             {deviceName || '...'}
           </h1>
 
           <div className="flex gap-[7px] items-center">
             <div className="bg-success-600 w-[7px] h-[7px] rounded-full"></div>
 
-            <p className="text-ink-500 text-body/[17px] font-normal">
+            <p className="text-ink-500 text-body/[1.4167] font-normal">
               已就绪 · {ip}:{port}
             </p>
           </div>
@@ -188,7 +188,7 @@ export default () => {
         <div className="w-full bg-surface-base border border-line-200 rounded-lg shadow-[var(--shadow-e1)]">
           <div className="w-full h-[44px] px-[14px] flex justify-between items-center">
             <p className="flex gap-[7px] items-center">
-              <span className="text-card/[19px] text-ink-700 font-medium">
+              <span className="text-card/[1.4615] text-ink-700 font-medium">
                 在线设备
               </span>
               <span className="w-[21px] h-[18px] rounded-full bg-line-100 text-caption text-ink-600 font-medium flex justify-center items-center">
@@ -214,7 +214,7 @@ export default () => {
               <div className="text-ink-300">
                 <IconSearch size={32} stroke={2} />
               </div>
-              <p className="text-ink-600 text-body/[17px]">暂无在线设备</p>
+              <p className="text-ink-600 text-body/[1.4167]">暂无在线设备</p>
               <p className="text-ink-400 text-caption font-normal">
                 请确认其他设备已启动 Easy2Send
               </p>
@@ -248,7 +248,7 @@ export default () => {
                         <PlatformIcon platform={platform} size={20} />
                       </div>
                       <div className="flex flex-1 flex-col gap-[3px] text-left">
-                        <p className="text-ink-900 text-card/[19px]">
+                        <p className="text-ink-900 text-card/[1.4615]">
                           {deviceName}
                         </p>
                         <p className="text-caption text-ink-400 font-normal">

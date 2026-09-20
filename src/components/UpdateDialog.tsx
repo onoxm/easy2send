@@ -132,16 +132,16 @@ const UpdateDialog = ({
       onContextMenu={e => e.preventDefault()}
     >
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-base/[23px] text-ink-900 font-bold">
+        <h1 className="text-base/5.75 text-ink-900 font-bold">
           发现新版本 v{update.version}
         </h1>
-        <p className="text-ink-500 text-body/[17px] font-normal">
+        <p className="text-ink-500 text-body/[1.4167] font-normal">
           当前版本 v{update.currentVersion}
         </p>
       </div>
 
       {downloading && (
-        <div className="w-full flex flex-col gap-[9px]">
+        <div className="w-full flex flex-col gap-2.25">
           <div className="w-full h-1.5 bg-line-100 rounded-pill overflow-hidden relative">
             {indeterminate ? (
               <div
@@ -172,19 +172,19 @@ const UpdateDialog = ({
       {/* 更新说明取自 latest.json 的 notes（Rust 侧映射为 Update.body），
           由发布流水线按提交记录生成；缺失时整块不渲染，避免留一个空灰块 */}
       {notes && (
-        <p className="bg-surface-muted p-[11px] rounded-control text-ink-600 text-caption/[16px] font-normal whitespace-pre-line max-h-[140px] overflow-y-auto">
+        <p className="bg-surface-muted p-2.75 rounded-control text-ink-600 text-caption/[1.4545] font-normal whitespace-pre-line max-h-35 overflow-y-auto">
           {notes}
         </p>
       )}
 
-      <div className="h-[1px]"></div>
+      <div className="h-.25"></div>
 
       <div className="mt-auto flex justify-end gap-2.5">
         {btnList.map(({ text, className, onClick }) => (
           <Button
             key={text}
             className={chainClassNames(
-              'px-4 py-[8.5px] text-card/[19px] rounded-control',
+              'px-4 py-2.125 text-card/[1.4615] rounded-control',
               className
             )}
             disabled={loading}
@@ -205,5 +205,5 @@ const UpdateDialog = ({
   )
 }
 
-export const updateDialog = (update: Update | any) =>
+export const updateDialog = (update: Update) =>
   portalRenderer(UpdateDialog, { update }, 'update-dialog-root')

@@ -12,6 +12,22 @@ export default defineConfig({
     transformerDirectives() // 启用指令转换器
   ],
   theme: {
+    // 字体族 · 与下面的 colors / radius 同样的做法：值转发到 variables.css 的 token，
+    // 保持「设计 token 唯一出口」。
+    //
+    // ⚠️ key 必须叫 `font`（不是 `fontFamily`）—— presetWind4 的主题入口是
+    // `theme.font = { sans, serif, mono }`，写成 `fontFamily` 会被**静默忽略**：
+    // 不报错、不产类、`--font-sans` 也不变，只有回读产物才发现它是个 no-op。
+    //
+    // 这条不只是为了能用 font-sans 类。presetWind4 的 preflight 是
+    //   html,:host { font-family: var(--default-font-family, …) }
+    //   --default-font-family: var(--font-sans)
+    // 而它自己的 `--font-sans` 默认值是 ui-sans-serif / system-ui 那一套。不在这里指回去，
+    // 那个默认值会在 virtual:uno.css 里**更晚出现**，静默盖掉 variables.css 里的 token
+    // （详见那里的注释）。转发之后 preflight 与 font-sans 工具类都会走到我们的栈。
+    font: {
+      sans: 'var(--font-family-sans)'
+    },
     colors: {
       on: { brand: 'var(--color-on-brand)' },
       brand: {

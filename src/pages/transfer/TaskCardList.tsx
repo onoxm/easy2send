@@ -148,13 +148,13 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col gap-[9px]">
-        <div className="flex justify-between items-center gap-[10px] text-ink-900 text-card/[19px]">
+        <div className="flex justify-between items-center gap-[10px] text-ink-900 text-card/[1.4615]">
           <p className="truncate font-medium text-ink-900" title={name}>
             {name}
           </p>
           <div
             className={chainClassNames(
-              'shrink-0 py-.5 px-2 rounded-pill text-caption/4 font-medium',
+              'shrink-0 py-.5 px-2 rounded-pill text-caption/[1.4545] font-medium',
               statusColor[status]
             )}
           >
@@ -174,7 +174,7 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
           />
         </div>
 
-        <div className="flex items-center gap-x-3 text-caption/4">
+        <div className="flex items-center gap-x-3 text-caption/[1.4545]">
           {primaryText && (
             <span className="shrink-0 text-ink-400">{primaryText}</span>
           )}

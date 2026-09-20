@@ -33,7 +33,7 @@ const ManualLinkDialogBox = ({
 
   return (
     <TemplateDialog
-      className="w-110 h-[257px] p-7 bg-surface-base rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
+      className="w-110 h-64.25 p-7 bg-surface-base rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
       dialogClose={destroy}
       onContextMenu={e => e.preventDefault()}
       animation={{ type: 'fade', startPosition: '30%' }}
@@ -41,20 +41,18 @@ const ManualLinkDialogBox = ({
       {enhancedDialogClose => (
         <>
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-ink-900 font-bold text-[17px]/[25px]">
-              手动连接
-            </h1>
-            <p className="text-ink-500 font-normal text-body/[17px]">
+            <h1 className="text-ink-900 font-bold text-4.25/6.25">手动连接</h1>
+            <p className="text-ink-500 font-normal text-body/[1.4167]">
               输入对方首页显示的地址
             </p>
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-ink-700 text-card/[19px]">对方地址</p>
+            <p className="text-ink-700 text-card/[1.4615]">对方地址</p>
             {/* 聚焦态按设计稿 3:600：描边 line.200 → brand.500 且线宽 1 → 1.5，外加外发光 */}
             <input
               type="text"
               placeholder="如 192.168.1.9:8234"
-              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[17px] rounded-control border border-line-200 outline-none state-focus"
+              className="w-full h-9 px-3 py-2.5 text-ink-500 font-normal text-body/[1.4167] rounded-control border border-line-200 outline-none state-focus"
               value={manualAddr}
               onChange={e => setManualAddr(e.target.value)}
               onKeyDown={e => {
@@ -62,7 +60,7 @@ const ManualLinkDialogBox = ({
                   handleConnect(manualAddr, enhancedDialogClose)
               }}
             />
-            <p className="text-ink-500 text-caption/[16px]">
+            <p className="text-ink-500 text-caption/[1.4545]">
               在对方首页的状态栏可以看到这串地址
             </p>
           </div>
@@ -71,7 +69,7 @@ const ManualLinkDialogBox = ({
               <button
                 key={text}
                 className={chainClassNames(
-                  'px-4 py-[8.5px] text-card/[19px] rounded-control',
+                  'px-4 py-2.125 text-card/[1.4615] rounded-control',
                   className
                 )}
                 onClick={() => onClick(enhancedDialogClose)}

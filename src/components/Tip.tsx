@@ -7,6 +7,18 @@ interface TipProps {
   /** 长文本形态：固定 240 宽把文字逼出换行（设计稿的两种形态之一），默认跟着内容收 */
   wide?: boolean
   children: ReactNode
+  placement?:
+    | 'top'
+    | 'bottom'
+    | 'left'
+    | 'right'
+    | 'top-start'
+    | 'left-start'
+    | 'right-start'
+    | 'top-end'
+    | 'bottom-end'
+    | 'left-end'
+    | 'right-end'
 }
 
 /**
@@ -16,10 +28,15 @@ interface TipProps {
  * 自带的深色皮肤与内层投影，改规格只需改一处。这里只管行为：
  * 悬停触发、优先出现在触发点上方、300ms 后淡入、不加箭头。
  */
-export const Tip = ({ content, wide, children }: TipProps) => (
+export const Tip = ({
+  content,
+  wide,
+  children,
+  placement = 'top'
+}: TipProps) => (
   <Popover
     trigger="hover"
-    placement="top"
+    placement={placement}
     mouseDelay={300}
     content={content}
     isShowArrow={false}

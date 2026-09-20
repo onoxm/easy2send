@@ -38,6 +38,7 @@ mdns-sd = "0.13" # mDNS 服务发现（纯 Rust，无外部依赖）
 notify-rust = "4" # 系统通知 + 点击回调（响应类型 wait_for_response）
 uuid = { version = "1", features = ["v4"] } # 设备唯一标识生成
 socket2 = "0.5" # socket 缓冲区调优（SO_SNDBUF / SO_RCVBUF）
+fontdb = "0.24.0"
 
 [profile.dev]
 opt-level = 1 # Use slightly better optimizations.

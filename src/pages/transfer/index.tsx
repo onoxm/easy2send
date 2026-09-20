@@ -366,7 +366,7 @@ export default () => {
             <span className="text-ink-600">
               <IconArrowLeft size={14} stroke={2} />
             </span>
-            <span className="text-ink-700 text-body/[17px] font-medium">
+            <span className="text-ink-700 text-body/[1.4167] font-medium">
               返回
             </span>
           </button>
@@ -374,13 +374,11 @@ export default () => {
           <div className="flex-1 flex flex-col gap-.75">
             <div className="flex items-center gap-[7px] text-ink-900">
               <PlatformIcon platform={connectedDevice.platform} size={16} />
-              <span className="text-[14px]/5">
-                {connectedDevice.deviceName}
-              </span>
+              <span className="peer-name">{connectedDevice.deviceName}</span>
             </div>
             <div className="flex items-center gap-[6px]">
               <div className="w-[6px] h-[6px] rounded-full bg-success-600"></div>
-              <p className="text-caption/4 text-ink-400 font-normal">
+              <p className="text-caption/[1.4545] text-ink-400 font-normal">
                 已连接 ·{' '}
                 {connectedDevice.deviceId === 'web-upload'
                   ? `http://${ip}:${port}`
@@ -389,7 +387,7 @@ export default () => {
             </div>
           </div>
 
-          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[17px] font-medium py-[7.5px] px-3 state-neutral">
+          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[1.4167] font-medium py-[7.5px] px-3 state-neutral">
             断开连接
           </button>
         </div>
@@ -414,10 +412,10 @@ export default () => {
                 onClick={() => setActiveTab(type)}
               >
                 {icon}
-                <span className="text-body/[17px]">{txt}</span>
+                <span className="text-body/[1.4167]">{txt}</span>
                 {Object.values(tasks).filter(t => t.direction === type).length >
                   0 && (
-                  <span className="text-[10px]/[14px] bg-brand-100 text-brand-700 rounded-full min-w-[22px] min-h-[22px] flex items-center justify-center">
+                  <span className="count-badge bg-brand-100 text-brand-700 rounded-full min-w-[22px] min-h-[22px] flex items-center justify-center">
                     {
                       Object.values(tasks).filter(t => t.direction === type)
                         .length
@@ -432,7 +430,7 @@ export default () => {
             <span className="text-ink-600">
               <IconFolder size={15} stroke={2} />
             </span>
-            <span className="text-ink-700 text-card/[19px] font-medium">
+            <span className="text-ink-700 text-card/[1.4615] font-medium">
               打开保存目录
             </span>
           </button>

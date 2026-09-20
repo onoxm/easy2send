@@ -1,6 +1,26 @@
 :root {
+  /* 字体族：唯一出口是 variables.css 的 --font-family-sans（顺序与理由都写在那里）。
+   * 写在 :root 而不是 body —— body 自己带 font-family 时会盖掉从 html 继承下来的值；
+   * :root 特异性 (0,1,0) 也高于 @unocss/reset 与 presetWind4 preflight 那两条
+   * `html, :host` 的 (0,0,1)，不依赖源码顺序。
+   *
+   * 附带说明：uno.config.ts 的 theme.font.sans 已把 presetWind4 的 `--font-sans` 转发到
+   * 同一个 token，preflight 自己就能算对，所以这条算是「冗余保险」。但也正因为如此，
+   * 它的存在**不能证明**变量没被覆盖 —— 验证时必须读运行时计算值。 */
+  font-family: var(--font-family-sans);
   background-color: var(--color-canvas);
   color-scheme: light;
+}
+
+/* 用户自选了界面字体：插到栈首，系统栈原样保留在后面当兜底（见 variables.css 的说明）。
+ *
+ * 用属性选择器而不是「让 JS 直接覆盖 --font-family-sans」，有两个理由：
+ * ① 「有没有自选」这个事实只需要表达一次 —— 属性的存在与否就是它，CSS 侧不用去判断
+ *    变量是否为空；
+ * ② :root[data-font-user] 特异性 (0,2,0) 高于 variables.css 的 :root (0,1,0)，
+ *    不依赖两个文件的先后（目前顺序由 index.css 的 @import 固定，但没必要依赖它）。 */
+:root[data-font-user] {
+  --font-family-sans: var(--font-family-user), var(--font-family-system);
 }
 
 /* 主题只有一个出口：<html> 上的 dark 类（切换逻辑见 hooks/useTheme.ts）。
@@ -12,16 +32,8 @@
   color-scheme: dark;
 }
 
-.text {
-  @apply text-sm font-normal select-none;
-}
-
-.btn {
-  @apply rounded-[5px] px-3 py-1 cursor-pointer font-thin;
-}
-
 .little_btn {
-  @apply w-8 h-8 p-0.5 border border-solid border-[#e5e7eb] rounded-md flex justify-center items-center hover:bg-gray-200 hover:text-gray-800;
+  @apply border border-line-200 rounded-md text-ink-600 shrink-0;
 }
 
 .input {
@@ -154,6 +166,31 @@
 }
 .scroll_vertical::-webkit-scrollbar-button {
   display: none;
+}
+
+/* ------------------------------------------------------------------
+ * 三处设计稿的一次性字号（没有走 --font-size-* 令牌），但它们同样要跟着设置页的
+ * 「字号缩放」走 —— 否则把缩放拉到 150% 时，这三处会明显偏小、与周围脱节。
+ *
+ * 刻意用普通类、而不是 UnoCSS 任意值 `text-[calc(18px*var(--font-scale))]`：
+ * 任意值里的 `/` 会被 UnoCSS 当成「尺寸/行高」分隔符，calc 里的 `*` 与 var() 也容易
+ * 在产物里出意外（见「数值属性 + 任意值」那条老坑）。这里直接写 CSS 最稳。
+ *
+ * 行高也一并乘上：这三个值原本就是 px 行高（不是相对值），不乘会与字号脱节。
+ * ------------------------------------------------------------------ */
+.page-title {
+  font-size: calc(18px * var(--font-scale));
+  line-height: calc(26px * var(--font-scale));
+}
+.peer-name {
+  font-size: calc(14px * var(--font-scale));
+  line-height: calc(
+    20px * var(--font-scale)
+  ); /* 原 text-[14px]/5 = 1.25rem = 20px */
+}
+.count-badge {
+  font-size: calc(10px * var(--font-scale));
+  line-height: calc(14px * var(--font-scale));
 }
 
 .loading {

@@ -85,10 +85,8 @@ const QrUploadDialog = ({
       {enhancedDialogClose => (
         <>
           <div className="flex flex-col gap-1.5 items-center">
-            <h1 className="text-ink-900 font-bold text-[17px]/[25px]">
-              手机上传
-            </h1>
-            <p className="text-body/[17px] text-ink-500 font-normal">
+            <h1 className="text-ink-900 font-bold text-4.25/4.75">手机上传</h1>
+            <p className="text-body/[1.4167] text-ink-500 font-normal">
               扫描二维码，将手机文件发送到电脑
             </p>
           </div>
@@ -97,9 +95,9 @@ const QrUploadDialog = ({
               <div className="border border-line-200 rounded-card shadow-[var(--shadow-e1)] overflow-hidden">
                 <img src={qrcode} alt="二维码" />
               </div>
-              <div className="w-full flex flex-col gap-[5px] px-3 py-2.5 bg-surface-muted rounded-control text-left">
+              <div className="w-full flex flex-col gap-1.25 px-3 py-2.5 bg-surface-muted rounded-control text-left">
                 <p className="text-xs text-ink-500 flex items-center justify-between">
-                  <span className="text-caption/[16px] font-normal">
+                  <span className="text-caption/[1.4545] font-normal">
                     电脑访问地址
                   </span>
                   <button
@@ -111,26 +109,26 @@ const QrUploadDialog = ({
                     <IconCopy size={14} stroke={1.5} />
                   </button>
                 </p>
-                <p className="text-caption/[16px] text-ink-700 break-all select-all">
+                <p className="text-caption/[1.4545] text-ink-700 break-all select-all">
                   {url}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-[7px]">
-                <div className="w-[7px] h-[7px] rounded-full bg-brand-500"></div>
-                <p className="text-body/[17px] text-ink-500 font-normal">
+              <div className="flex items-center justify-center gap-1.75">
+                <div className="w-1.75 h-1.75 rounded-full bg-brand-500"></div>
+                <p className="text-body/[1.4167] text-ink-500 font-normal">
                   {status}
                 </p>
               </div>
             </>
           ) : (
             <div className="w-50 h-50 flex items-center justify-center">
-              <p className="text-body/[17px] text-ink-500 font-normal">
+              <p className="text-body/[1.4167] text-ink-500 font-normal">
                 {status}
               </p>
             </div>
           )}
           <button
-            className="w-full h-[38px] text-ink-700 border border-line-200 rounded-control text-card/[19px] state-neutral"
+            className="w-full h-9.5 text-ink-700 border border-line-200 rounded-control text-card/[1.4615] state-neutral"
             onClick={enhancedDialogClose}
           >
             取消

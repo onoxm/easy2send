@@ -5,6 +5,7 @@ mod fs;
 mod transfer;
 mod webupload;
 use common::{
+    fonts::list_fonts,
     hostname_ip::get_lan_ip,
     notify::send_notification,
     port::get_free_port,
@@ -81,6 +82,8 @@ pub fn run() {
             stop_web_upload,
             get_web_upload_port,
             create_pair_token,
+            // 系统字体枚举（设置页「界面字体」下拉框；WebView 自己拿不到这个列表）
+            list_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

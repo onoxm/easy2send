@@ -150,9 +150,19 @@ body {
 }
 
 body {
+  /* 与主应用 src/styles/variables.css 的 --font-sans 是**同一套顺序**，改一处要同步改另一处。
+   * 本页是纯 HTML/CSS、没有 UnoCSS，所以只能在这里重新声明一遍。
+   *
+   * 顺序的逻辑（按字符匹配）：Segoe UI / Roboto 只提供拉丁，汉字继续往后落到
+   * Microsoft YaHei / Noto Sans CJK SC。手机端实际命中的是 -apple-system（iOS → 苹方）
+   * 或 Roboto + Noto Sans CJK SC（Android），刻意不列 MiSans / HarmonyOS Sans ——
+   * 国产 ROM 把系统默认换成它们，那是用户的偏好，让 sans-serif 兜底即可。
+   *
+   * ⚠️ `Noto Sans SC` ≠ `Noto Sans CJK SC`：家族名不同，Android / Linux 上是后者。 */
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC',
+    sans-serif;
   background: var(--page-bg);
   color: var(--ink-900);
   -webkit-font-smoothing: antialiased;

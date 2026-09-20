@@ -1,6 +1,7 @@
 export * from './useCheckUpdate'
 export * from './useCreateQRCode'
 export * from './useDevices'
+export * from './useFont'
 export * from './useIP'
 export * from './useNotification'
 export * from './useProt'

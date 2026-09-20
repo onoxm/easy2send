@@ -1,3 +1,4 @@
+pub mod fonts;
 pub mod hostname_ip;
 pub mod main_window;
 pub mod notify;

@@ -25,10 +25,10 @@ export const EmptyPanel = ({
           <IconDownload stroke={2} />
         )}
       </div>
-      <div className="text-body/[17px] text-ink-600">
+      <div className="text-body/[1.4167] text-ink-600">
         {tab === 'send' ? '点击或拖拽文件到此处发送' : '暂无接收中的任务'}
       </div>
-      <div className="text-caption/[16px] text-ink-400">
+      <div className="text-caption/[1.4545] text-ink-400">
         {tab === 'send'
           ? '支持多选文件 / 文件夹，按并发数自动排队        '
           : '对方发送文件后，会自动创建任务卡片'}

@@ -1,6 +1,7 @@
 import { startDiscovery } from '@/api/discovery'
 import {
   useCheckUpdate,
+  useFont,
   useIP,
   usePort,
   useTauriListeners,
@@ -20,6 +21,9 @@ export default () => {
 
   // 主题三态：把 store 里的模式落到 <html> 的 dark 类，system 态下跟随系统变化
   useTheme()
+
+  // 界面字体与字号缩放：同样只落到 <html>（data-font-user + 两个自定义属性）
+  useFont()
 
   useCheckUpdate()
 
@@ -119,7 +123,11 @@ export default () => {
   }, [ip, port])
 
   return (
-    <main className="w-screen h-screen" onContextMenu={e => e.preventDefault()}>
+    /* w-full 而不是 w-screen：w-screen 是 100vw，**包含纵向滚动条的宽度**。
+       设置页内容超过窗口高度时文档出现滚动条，100vw 仍按 800 算、可用宽度只剩 785，
+       于是横向也溢出一条 15px 的滚动条。用 100%（= 包含块的宽度，已扣掉滚动条）就不会。
+       页面本来就不高、通常不滚动，所以这个问题只在设置页加长后才暴露出来。 */
+    <main className="w-full h-screen" onContextMenu={e => e.preventDefault()}>
       <Outlet />
     </main>
   )

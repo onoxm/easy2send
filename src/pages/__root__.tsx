@@ -4,8 +4,7 @@ import {
   useFont,
   useIP,
   usePort,
-  useTauriListeners,
-  useTheme
+  useTauriListeners
 } from '@/hooks'
 import { useConfig } from '@/hooks/useConfig'
 import useStore from '@/store'
@@ -18,9 +17,6 @@ import { Outlet, useNavigate } from 'react-router'
 
 export default () => {
   useConfig()
-
-  // 主题三态：把 store 里的模式落到 <html> 的 dark 类，system 态下跟随系统变化
-  useTheme()
 
   // 界面字体与字号缩放：同样只落到 <html>（data-font-user + 两个自定义属性）
   useFont()
@@ -113,6 +109,12 @@ export default () => {
           }
         })
         navigate('/transfer?tab=receive')
+      },
+      // 托盘「关于」：Rust 侧已经把窗口拉回前台，这里只管把路由切到设置页。
+      // 走 state 而不是查询参数，是为了让「人已经在设置页、又点了一次托盘」也能再滚到底
+      // —— 每次 navigate 都会生成新的 location.key，设置页据此重跑滚动。
+      'open-about': () => {
+        navigate('/settings', { state: { scrollToAbout: true } })
       }
     },
     [navigate]

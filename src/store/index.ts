@@ -1,16 +1,12 @@
 import type { DeviceInfo } from '@/types/discovery'
-import { createStoreHook } from '@onoxm/zustand-tools'
-import { selectProperties, type ThemeType } from 'ono-react-element'
-import { create } from 'zustand'
 import {
-  createJSONStorage,
-  devtools,
-  persist,
-  subscribeWithSelector
-} from 'zustand/middleware'
+  defineGlobalState,
+  persistMiddleware,
+  type ThemeMode
+} from 'ono-react-element'
 
 const initialState = {
-  theme: 'system' as ThemeType,
+  theme: 'system' as ThemeMode,
   ip: '',
   port: 0,
   savePath: '',
@@ -38,31 +34,23 @@ const initialState = {
 
 export type StateType = typeof initialState
 
-const useStore = createStoreHook(
-  create<StateType>()(
-    devtools(
-      subscribeWithSelector(
-        persist(() => initialState, {
-          name: 'ono-storage',
-          partialize: state =>
-            selectProperties(state, [
-              'theme',
-              'version',
-              'savePath',
-              'canUpdate',
-              'deviceName',
-              'autoCheckUpdate',
-              'concurrentUploads',
-              // 字体两项必须在这里登记，否则只是「改了当场生效、重启就忘」——
-              // persist 的 partialize 是个白名单，漏登记不会报错，只会静默不存。
-              'fontFamily',
-              'fontScale'
-            ]),
-          storage: createJSONStorage(() => localStorage)
-        })
-      )
-    )
-  )
-)
+const useStore = defineGlobalState(initialState, [
+  persistMiddleware({
+    name: 'easy2send',
+    properties: [
+      'theme',
+      'version',
+      'savePath',
+      'canUpdate',
+      'deviceName',
+      'autoCheckUpdate',
+      'concurrentUploads',
+      // 字体两项必须在这里登记，否则只是「改了当场生效、重启就忘」——
+      // persist 的 partialize 是个白名单，漏登记不会报错，只会静默不存。
+      'fontFamily',
+      'fontScale'
+    ]
+  })
+])
 
 export default useStore

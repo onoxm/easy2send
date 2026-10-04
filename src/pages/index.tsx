@@ -1,12 +1,13 @@
 import { connectByAddr, connectDevice } from '@/api/discovery'
 import { createPairToken, startWebUpload, stopWebUpload } from '@/api/webupload'
 import {
+  innerToast,
   Layout,
   manualLinkDialog,
   PlatformIcon,
   qrUploadDialog
 } from '@/components'
-import { useDevices, useTheme } from '@/hooks'
+import { useDevices } from '@/hooks'
 import useStore from '@/store'
 import {
   IconChevronRight,
@@ -19,20 +20,20 @@ import {
   IconSettings,
   IconSun
 } from '@tabler/icons-react'
-import { chainClassNames, ThemeType, toast } from 'ono-react-element'
+import { chainClassNames, ThemeMode, useThemePro } from 'ono-react-element'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 /** 三态主题的说明文字（按钮的 title / aria-label） */
-const THEME_LABEL: Record<ThemeType, string> = {
+const THEME_LABEL: Record<ThemeMode, string> = {
   system: '跟随系统',
   light: '浅色',
   dark: '深色'
 }
 
 /** 图标跟着当前模式走：对比度=跟随系统，太阳=浅色，月亮=深色 */
-const ThemeIcon = ({ theme }: { theme: ThemeType }) => {
+const ThemeIcon = ({ theme }: { theme: ThemeMode }) => {
   if (theme === 'light') return <IconSun size={20} stroke={2} />
   if (theme === 'dark') return <IconMoon size={20} stroke={2} />
   return <IconContrast size={20} stroke={2} />
@@ -40,26 +41,19 @@ const ThemeIcon = ({ theme }: { theme: ThemeType }) => {
 
 export default () => {
   const { devices, refresh } = useDevices()
-  const { theme, cycleTheme } = useTheme()
-  const { deviceName, ip, port, savePath } = useStore([
+  const { deviceName, ip, port, savePath, theme } = useStore([
     'deviceName',
     'ip',
     'port',
-    'savePath'
+    'savePath',
+    'theme'
   ])
   const [connecting, setConnecting] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  // const [, changeTheme] = useThemePro({
-  //   initTheme: theme as 'light' | 'dark',
-  //   themeRules: isDark => {
-  //     const theme = isDark ? 'dark' : 'light'
-  //     useStore.setState({ theme })
-  //   }
-  // })
-
-  // const changeThemeIcon = () =>
-  //   theme === 'light' ? <SunOne {...ICON_INFO} /> : <Moon {...ICON_INFO} />
+  const { theme: currentTheme, nextTheme } = useThemePro({
+    initTheme: theme
+  })
 
   // 点击设备 → 发送握手 → 跳转传输页
   const handleConnect = async (deviceId: string) => {
@@ -69,7 +63,7 @@ export default () => {
       useStore.setState({ connectedDevice: peer })
       navigate('/transfer')
     } catch (error) {
-      toast.error(`连接失败: ${error}`)
+      innerToast.error(`连接失败: ${error}`)
     } finally {
       setConnecting(null)
     }
@@ -89,7 +83,7 @@ export default () => {
       navigate('/transfer')
       onSuccess()
     } catch (error) {
-      toast.error(`连接失败: ${error}`)
+      innerToast.error(`连接失败: ${error}`)
     } finally {
       setConnecting(null)
     }
@@ -100,7 +94,7 @@ export default () => {
   const handleWebUpload = async () => {
     try {
       if (!ip || !savePath) {
-        toast.error('网络或保存路径未就绪，请稍后再试')
+        innerToast.error('网络或保存路径未就绪，请稍后再试')
         return
       }
       const webPort = await startWebUpload(ip, savePath)
@@ -114,7 +108,7 @@ export default () => {
         onClose: () => stopWebUpload().catch(() => {})
       })
     } catch (e) {
-      toast.error(`启动手机上传失败: ${e}`)
+      innerToast.error(`启动手机上传失败: ${e}`)
       stopWebUpload().catch(() => {})
     }
   }
@@ -140,6 +134,12 @@ export default () => {
     }
   ]
 
+  useEffect(() => {
+    useStore.setState({
+      theme: currentTheme
+    })
+  }, [currentTheme])
+
   return (
     <Layout>
       <div className="w-full flex justify-between">
@@ -156,7 +156,7 @@ export default () => {
             className="little_btn p-1.5 bg-surface-base state-neutral"
             title={`主题：${THEME_LABEL[theme]}`}
             aria-label={`主题：${THEME_LABEL[theme]}，点击切换`}
-            onClick={cycleTheme}
+            onClick={e => nextTheme({ element: e.currentTarget })}
           >
             <ThemeIcon theme={theme} />
           </button>

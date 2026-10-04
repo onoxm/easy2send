@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    App, Manager,
+    App, Emitter, Manager,
 };
 
 use super::main_window::show_main_window;
@@ -13,6 +13,7 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             &[
                 &MenuItem::with_id(app, "show", "显示", true, None::<&str>).unwrap(),
                 &MenuItem::with_id(app, "hide", "隐藏", true, None::<&str>).unwrap(),
+                &MenuItem::with_id(app, "about", "关于", true, None::<&str>).unwrap(),
                 &MenuItem::with_id(app, "restart", "重启", true, None::<&str>).unwrap(),
                 &MenuItem::with_id(app, "quit", "退出", true, None::<&str>).unwrap(),
             ],
@@ -37,6 +38,13 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();
                 }
+            }
+            "about" => {
+                // 先把窗口拉回前台再通知前端：窗口可能正最小化或隐藏着，
+                // 只发事件的话路由是切好了，用户却看不见。
+                show_main_window(app);
+                // 前端在 __root__ 的 useTauriListeners 里监听，收到后跳设置页
+                let _ = app.emit("open-about", ());
             }
             "restart" => {
                 app.restart();

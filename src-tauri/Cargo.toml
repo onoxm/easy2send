@@ -1,9 +1,11 @@
 [package]
 name = "easy2send"
-version = "0.2.10"
-description = "A Tauri App"
+version = "0.3.0"
+description = "Zero-config LAN file transfer tool"
 authors = ["onoxm"]
+repository = "https://github.com/onoxm/easy2send"
 edition = "2021"
+rust-version = "1.89"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

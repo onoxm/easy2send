@@ -3,5 +3,7 @@
   "savePath": "",
   "deviceName": "",
   "concurrentUploads": 2,
-  "autoCheckUpdate": true
+  "autoCheckUpdate": true,
+  "fontFamily": "",
+  "fontScale": 100
 }

@@ -28,7 +28,7 @@ export const Select = ({
         selectClassName
       )}
       optionsClassName={chainClassNames(
-        'py-1 border border-line-200 bg-surface-base',
+        'py-1 border border-line-200 bg-surface-base gap-1 flex flex-col',
         optionsClassName
       )}
       defaultValue={defaultValue}
@@ -42,10 +42,12 @@ export const Select = ({
         )
       }
       options={options}
-      optionRender={(option, selected) => (
+      onChange={onChange}
+    >
+      {(option, selected) => (
         <span
           className={chainClassNames(
-            'py-1.5 px-2.5 hover:bg-surface-mute text-ink-900 text-card/4.75 hover:bg-line-100 block',
+            'py-1.5 px-2.5 hover:bg-surface-mute text-ink-900 text-card/4.75 hover:bg-line-100 block rounded-sm',
             selected ? 'bg-brand-50 text-brand-600' : ''
           )}
           style={{
@@ -55,7 +57,6 @@ export const Select = ({
           {option.label}
         </span>
       )}
-      onChange={onChange}
-    />
+    </OnoSelect>
   )
 }

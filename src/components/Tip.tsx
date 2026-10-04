@@ -1,4 +1,4 @@
-import { Popover } from 'ono-react-element'
+import { PlacementType, Tooltip } from 'ono-react-element'
 import type { ReactNode } from 'react'
 
 interface TipProps {
@@ -7,18 +7,7 @@ interface TipProps {
   /** 长文本形态：固定 240 宽把文字逼出换行（设计稿的两种形态之一），默认跟着内容收 */
   wide?: boolean
   children: ReactNode
-  placement?:
-    | 'top'
-    | 'bottom'
-    | 'left'
-    | 'right'
-    | 'top-start'
-    | 'left-start'
-    | 'right-start'
-    | 'top-end'
-    | 'bottom-end'
-    | 'left-end'
-    | 'right-end'
+  placement?: PlacementType
 }
 
 /**
@@ -34,7 +23,7 @@ export const Tip = ({
   children,
   placement = 'top'
 }: TipProps) => (
-  <Popover
+  <Tooltip
     trigger="hover"
     placement={placement}
     mouseDelay={300}
@@ -43,5 +32,5 @@ export const Tip = ({
     className={wide ? 'tooltip-bubble tooltip-bubble-wide' : 'tooltip-bubble'}
   >
     {children}
-  </Popover>
+  </Tooltip>
 )

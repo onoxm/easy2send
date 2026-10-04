@@ -3,6 +3,7 @@ import { IconCopy } from '@tabler/icons-react'
 import { listen } from '@tauri-apps/api/event'
 import { copyText, portalRenderer, TemplateDialog } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
+import { innerToast } from './toast'
 
 interface QrUploadDialogProps {
   /** 二维码内容（含 token 的完整 URL，由调用方在启动服务器后传入） */
@@ -103,7 +104,7 @@ const QrUploadDialog = ({
                   <button
                     onClick={() => {
                       copyText(url)
-                      setStatus('已复制到剪贴板')
+                      innerToast.success('已复制到剪贴板')
                     }}
                   >
                     <IconCopy size={14} stroke={1.5} />

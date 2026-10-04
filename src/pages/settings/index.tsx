@@ -1,16 +1,23 @@
 import { setDeviceName } from '@/api/discovery'
 import { windowBasicOperation } from '@/api/tauri'
-import { Select, Tip } from '@/components'
+// import { innerToast, Logo, Select, Tip } from '@/components'
+import { innerToast, Select, Tip } from '@/components'
 import useStore from '@/store'
-import { IconArrowLeft, IconEdit, IconFolder } from '@tabler/icons-react'
+import {
+  IconArrowLeft,
+  // IconBrandGithub,
+  IconEdit,
+  IconFolder
+} from '@tabler/icons-react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+// import { openUrl } from '@tauri-apps/plugin-opener'
 import { check } from '@tauri-apps/plugin-updater'
-import { Button, Switch, toast } from 'ono-react-element'
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
-import { SettingsBar } from './SettingsBar'
+import { Button, Switch } from 'ono-react-element'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { FontPicker } from './FontPicker'
+import { SettingsBar } from './SettingsBar'
 
 export default () => {
   const {
@@ -36,9 +43,23 @@ export default () => {
   ])
   const [downloading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   // 设置页与首页共用同一个窗口，路由切换即返回，需要一个显式的返回入口
   const handleBack = () => navigate('/')
+
+  // 托盘「关于」跳过来时，得把视图带到页面底部的关于区块 —— 否则用户明明按的是
+  // 「关于」，眼睛落到的却是顶部的「保存路径」。依赖 location.key 而不是 location.state：
+  // 每次 navigate 都会生成新的 key，所以「人已经在设置页、又点了一次托盘」也能再滚一次。
+  useEffect(() => {
+    const state = location.state as { scrollToAbout?: boolean } | null
+    if (!state?.scrollToAbout) return
+    // 关于区块固定是设置页的最后一项 ⇒ 滚到文档底部与滚到它等价，省掉一个锚点。
+    document.documentElement.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: 'smooth'
+    })
+  }, [location.key])
 
   const savePathBtnList = [
     {
@@ -74,6 +95,18 @@ export default () => {
       windowBasicOperation({ type: 'restart' })
     }
   }
+
+  // 外链一律交给系统默认浏览器：Tauri 的 webview 会拦截 `<a href>` 发起的**外部导航**
+  // （点了不会离开应用，也不会报错），所以必须显式调 opener。所需权限
+  // `opener:default` 已在 capabilities/default.json 里，且已含 allow-default-urls
+  // ⇒ https 在白名单内，不需要额外加 scope。
+  // const handleOpenRepo = async () => {
+  //   try {
+  //     await openUrl('https://github.com/onoxm/easy2send')
+  //   } catch (e) {
+  //     innerToast.error(`打开仓库地址失败: ${e}`)
+  //   }
+  // }
 
   const concurrentOptions = [1, 2, 3, 4, 5]
   const settingsBarList = [
@@ -142,7 +175,7 @@ export default () => {
             try {
               await setDeviceName(deviceName)
             } catch (e) {
-              toast.error(`设备别名修改失败: ${e}`)
+              innerToast.error(`设备别名修改失败: ${e}`)
             }
           }}
         />
@@ -249,6 +282,45 @@ export default () => {
         </p>
       )
     }
+    // {
+    //   title: '关于',
+    //   children: (
+    //     <>
+    //       <Logo size={28} className="shrink-0" />
+    //       <div className="flex flex-col gap-.75 min-w-0 flex-1">
+    //         <div className="flex items-center gap-1.5">
+    //           <span className="text-card/[1.4615] font-medium text-ink-900">
+    //             Easy2Send
+    //           </span>
+    //           <span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500">
+    //             v{version}
+    //           </span>
+    //         </div>
+    //         <p className="text-caption/[1.4545] font-normal text-ink-400 truncate">
+    //           局域网内免配置互传文件，不用账号、不走云端
+    //         </p>
+    //       </div>
+    //       {/* 协议做成纯展示徽标：想知道全文的人点右侧仓库链接即可 —— 这里再挂一个
+    //           独立出口，将来换协议或改年份就多一处要同步，而它本来不会有人点。 */}
+    //       <span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500 shrink-0">
+    //         MIT
+    //       </span>
+    //       {/* 借用设置页「返回」按钮的次要按钮规格（描边 + surface.base + 10 圆角 +
+    //           state-neutral），不再为它单开一套观感 */}
+    //       <button
+    //         className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-control shrink-0 state-neutral"
+    //         onClick={handleOpenRepo}
+    //       >
+    //         <span className="text-ink-600">
+    //           <IconBrandGithub size={14} stroke={2} />
+    //         </span>
+    //         <span className="text-ink-700 text-body/[1.4167] font-medium">
+    //           GitHub 仓库
+    //         </span>
+    //       </button>
+    //     </>
+    //   )
+    // }
   ]
 
   return (

@@ -1,6 +1,6 @@
 [package]
 name = "easy2send"
-version = "0.3.0"
+version = "0.3.1"
 description = "Zero-config LAN file transfer tool"
 authors = ["onoxm"]
 repository = "https://github.com/onoxm/easy2send"

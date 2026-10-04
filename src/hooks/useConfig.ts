@@ -1,6 +1,6 @@
 import { getDeviceId } from '@/api/discovery'
 import { basePath } from '@/api/tauri'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import operationConfig, { initConfig } from '@/utils/operationConfig'
 import { invoke } from '@tauri-apps/api/core'
 import { useEffect } from 'react'

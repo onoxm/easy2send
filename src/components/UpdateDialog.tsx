@@ -1,5 +1,5 @@
 import { setUpdateDismissed, windowBasicOperation } from '@/api/tauri'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { Update } from '@tauri-apps/plugin-updater'
 import {
   Button,

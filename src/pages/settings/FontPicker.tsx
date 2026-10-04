@@ -50,17 +50,20 @@ export const FontPicker = ({ value, onChange }: FontPickerProps) => {
   /* 固定 options 的引用：过滤、选中项查找都基于它，每次渲染都给一个新数组是白白的重算。 */
   const options = useMemo(() => {
     if (!fonts) return null
+    /* `value` 声明成 string，但它来自**运行时的持久化数据** —— 类型系统管不到那里。
+       实测过一次脏数据（旧格式的 localStorage 记录把 fontFamily 覆盖成 undefined），
+       于是下面 `value.replace(...)` 直接抛 TypeError、整个设置页变成错误页。
+       所以这里按「字符串且非空」判定「有没有自选」，剩下的都当「跟随系统」。 */
+    const chosen = typeof value === 'string' && value !== '' ? value : null
     // 存着的字体这次没枚举到（比如用户把它卸了）：补一个占位项，
     // 否则 defaultValue 在列表里找不到 → 同样显示空白，用户会以为设置丢了。
-    const known = value === '' || fonts.some(f => f.css === value)
-    const missing = !known
-      ? [
-          {
-            label: value.replace(/["']/g, '').split(',')[0].trim(),
-            value
-          }
-        ]
-      : []
+    const missing: { label: string; value: string }[] = []
+    if (chosen !== null && !fonts.some(f => f.css === chosen)) {
+      missing.push({
+        label: chosen.replace(/["']/g, '').split(',')[0].trim(),
+        value: chosen
+      })
+    }
     return [
       { label: '跟随系统', value: SYSTEM_FONT },
       ...missing,

@@ -7,7 +7,7 @@ import {
   useTauriListeners
 } from '@/hooks'
 import { useConfig } from '@/hooks/useConfig'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import type { DeviceInfo } from '@/types/discovery'
 import { getPlatform } from '@/types/discovery'
 import { invoke } from '@tauri-apps/api/core'

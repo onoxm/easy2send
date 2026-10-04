@@ -8,7 +8,7 @@ import {
   qrUploadDialog
 } from '@/components'
 import { useDevices } from '@/hooks'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import {
   IconChevronRight,
   IconContrast,

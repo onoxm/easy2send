@@ -1,5 +1,12 @@
 # easy2send
 
+## 0.3.1
+
+### Patch Changes
+
+- 修复 localStorage 里遗留的旧格式记录把全部持久化字段覆盖成 undefined，导致界面文字消失、设置页报错的问题
+- 移除已无引用的 zustand 依赖（状态管理迁移至 ono-react-element 的 defineGlobalState 后遗留）
+
 ## 0.3.0
 
 ### Minor Changes

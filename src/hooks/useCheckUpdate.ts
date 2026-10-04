@@ -1,6 +1,6 @@
 import { isUpdateDismissed } from '@/api/tauri'
 import { updateDialog } from '@/components'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { check } from '@tauri-apps/plugin-updater'
 import { useEffect } from 'react'
 

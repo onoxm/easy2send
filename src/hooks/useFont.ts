@@ -1,4 +1,4 @@
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { useLayoutEffect } from 'react'
 
 /**
@@ -23,7 +23,12 @@ const applyFont = (fontFamily: string, fontScale: number) => {
   }
 
   // 内联自定义属性优先级最高，直接盖过 variables.css 里 --font-scale 的默认值。
-  root.style.setProperty('--font-scale', String(fontScale / 100))
+  // ⚠️ 必须挡掉非有限数：脏值（实测 fontScale = undefined）会算成字符串 "NaN"，
+  //   而 --font-size-* 全是 calc(Npx * var(--font-scale)) —— 浏览器把 NaN 算成 **0px**，
+  //   于是整个界面的文字凭空消失，看起来像「软件坏了」，而不是「字号不对」。
+  //   宁可退回不缩放（1），也不要让一个设置项把全站文字打没。
+  const scale = Number.isFinite(fontScale) ? fontScale : 100
+  root.style.setProperty('--font-scale', String(scale / 100))
 }
 
 /**

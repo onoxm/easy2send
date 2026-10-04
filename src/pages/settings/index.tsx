@@ -2,7 +2,7 @@ import { setDeviceName } from '@/api/discovery'
 import { windowBasicOperation } from '@/api/tauri'
 // import { innerToast, Logo, Select, Tip } from '@/components'
 import { innerToast, Select, Tip } from '@/components'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import {
   IconArrowLeft,
   // IconBrandGithub,

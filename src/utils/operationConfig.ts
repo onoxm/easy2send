@@ -1,5 +1,5 @@
 // src/utils/operationConfig.ts
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { appDataDir, dirname, join, resourceDir } from '@tauri-apps/api/path'
 import { mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 

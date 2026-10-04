@@ -6,7 +6,7 @@ import {
 import { stopWebUpload } from '@/api/webupload'
 import { Layout, PlatformIcon } from '@/components'
 import { useNotification, useQuery, useTauriDrag } from '@/hooks'
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { TransferTask, TransferType } from '@/types/transfer'
 import {
   IconArrowBarToDown,

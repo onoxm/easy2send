@@ -1,4 +1,4 @@
-import useStore from '@/store'
+import { useStore } from '@/store'
 import { TaskStatus, TransferTask } from '@/types/transfer'
 import {
   IconExternalLink,

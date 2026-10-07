@@ -35,9 +35,6 @@ export interface DiscoveryConfig {
   version: string
 }
 
-/** 发现层状态 */
-export type DiscoveryStatus = 'running' | 'stopped' | 'error'
-
 /**
  * 检测当前平台（桌面应用 UA 真实，可直接用 navigator 判断）
  */

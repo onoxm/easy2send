@@ -1,9 +1,11 @@
-import {
-  chainClassNames,
-  portalRenderer,
-  TemplateDialog
-} from 'ono-react-element'
+import { portalRenderer } from 'ono-react-element'
 import { useState } from 'react'
+import {
+  DialogActions,
+  DialogShell,
+  DialogTitle,
+  btnClass
+} from './DialogShell'
 
 interface ManualLinkDialogProps {
   handleConnect: (manualAddr: string, onSuccess: () => void) => void
@@ -20,32 +22,22 @@ const ManualLinkDialogBox = ({
   const btnList = [
     {
       text: '取消',
-      className: 'border border-line-200 text-ink-700 state-neutral',
+      variant: 'secondary' as const,
       onClick: (close: () => void) => close()
     },
     {
       text: '连接',
-      className:
-        'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand',
+      variant: 'primary' as const,
       onClick: (close: () => void) => handleConnect(manualAddr, close)
     }
   ]
 
   return (
-    <TemplateDialog
-      className="w-110 h-64.25 p-7 bg-surface-base rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
-      dialogClose={destroy}
-      onContextMenu={e => e.preventDefault()}
-      animation={{ type: 'fade', startPosition: '30%' }}
-    >
+    <DialogShell className="w-110 h-64.25 p-7 gap-4" onClose={destroy}>
       {enhancedDialogClose => (
         <>
-          <div className="flex flex-col gap-1.5">
-            <h1 className="text-ink-900 font-bold text-4.25/6.25">手动连接</h1>
-            <p className="text-ink-500 font-normal text-body/[1.4167]">
-              输入对方首页显示的地址
-            </p>
-          </div>
+          <DialogTitle title="手动连接" description="输入对方首页显示的地址" />
+
           <div className="flex flex-col gap-2">
             <p className="text-ink-700 text-card/[1.4615]">对方地址</p>
             {/* 聚焦态按设计稿 3:600：描边 line.200 → brand.500 且线宽 1 → 1.5，外加外发光 */}
@@ -64,23 +56,21 @@ const ManualLinkDialogBox = ({
               在对方首页的状态栏可以看到这串地址
             </p>
           </div>
-          <div className="flex justify-end gap-2.5">
-            {btnList.map(({ text, className, onClick }) => (
+
+          <DialogActions>
+            {btnList.map(({ text, variant, onClick }) => (
               <button
                 key={text}
-                className={chainClassNames(
-                  'px-4 py-2.125 text-card/[1.4615] rounded-control',
-                  className
-                )}
+                className={btnClass(variant)}
                 onClick={() => onClick(enhancedDialogClose)}
               >
                 {text}
               </button>
             ))}
-          </div>
+          </DialogActions>
         </>
       )}
-    </TemplateDialog>
+    </DialogShell>
   )
 }
 

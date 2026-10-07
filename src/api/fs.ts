@@ -1,33 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
 
-export const sendFile = async (
-  addr: string,
-  filePath: string,
-  onSending?: () => void,
-  onError?: (error: unknown) => void
-) => {
-  try {
-    onSending?.()
-    await invoke('send_file', { addr, filePath })
-  } catch (error) {
-    onError?.(error)
-  }
-}
-
-export const sendFiles = async (
-  addr: string,
-  filePaths: string[],
-  onSending?: () => void,
-  onError?: (error: unknown) => void
-) => {
-  try {
-    onSending?.()
-    await invoke('send_files', { addr, filePaths })
-  } catch (error) {
-    onError?.(error)
-  }
-}
-
 export interface TransferTaskSeed {
   task_id: string
   path: string
@@ -53,3 +25,21 @@ export const startTransferTask = (
     taskId,
     filePath
   })
+
+/** 中断指定的发送任务
+ *
+ * 真正让后端停下（而不只是前端改个状态）：后端按 task_id 找到中断标记并置位，
+ * 传输循环在每个分块处检查它。只对「已启动且尚未结束」的任务有效，
+ * 查不到的任务会被跳过，返回实际被标记的数量 —— 不做成错误，
+ * 因为「任务恰好在用户点确认那会儿传完了」是正常竞态，不该让断开失败。
+ */
+export const cancelTransferTasks = (taskIds: string[]) =>
+  invoke<number>('cancel_transfer_tasks', { taskIds })
+
+/**
+ * 用系统默认程序打开文件，或用文件管理器打开目录。
+ *
+ * 「打开保存目录」「打开刚收到的文件」两个入口共用这一条 —— 它们原先各自
+ * 散着写裸 invoke，连参数名都要靠记忆对齐。
+ */
+export const openFile = (path: string) => invoke<void>('open_file', { path })

@@ -4,7 +4,8 @@ import {
   innerToast,
   Layout,
   manualLinkDialog,
-  PlatformIcon,
+  PeerAvatar,
+  PeerIdentity,
   qrUploadDialog
 } from '@/components'
 import { useDevices } from '@/hooks'
@@ -55,7 +56,10 @@ export default () => {
     initTheme: theme
   })
 
-  // 点击设备 → 发送握手 → 跳转传输页
+  // 点击设备 → 发送握手 → 等对方确认 → 跳转传输页
+  //
+  // 对方若是首次遇到本机，会弹窗询问，这里最长要等 30 秒才返回；
+  // 对方已信任本机时则是即时返回。
   const handleConnect = async (deviceId: string) => {
     setConnecting(deviceId)
     try {
@@ -99,7 +103,9 @@ export default () => {
       }
       const webPort = await startWebUpload(ip, savePath)
       const token = await createPairToken()
-      const url = `http://${ip}:${webPort}/?token=${token}`
+      // token 放 fragment 而非 query：fragment 不会被浏览器发往服务器，
+      // 既不进服务端日志，也不会随同源资源的 Referer 泄漏
+      const url = `http://${ip}:${webPort}/#token=${token}`
       qrUploadDialog({
         url,
         width: 260,
@@ -244,21 +250,15 @@ export default () => {
                       disabled={connecting !== null}
                       onClick={() => handleConnect(deviceId)}
                     >
-                      <div className="w-9 h-9 bg-surface-muted rounded-md flex justify-center items-center text-ink-600">
-                        <PlatformIcon platform={platform} size={20} />
-                      </div>
-                      <div className="flex flex-1 flex-col gap-[3px] text-left">
-                        <p className="text-ink-900 text-card/[1.4615]">
-                          {deviceName}
-                        </p>
-                        <p className="text-caption text-ink-400 font-normal">
-                          {ip}:{port} · {platform} · v{version}
-                        </p>
-                      </div>
+                      <PeerAvatar platform={platform} />
+                      <PeerIdentity
+                        name={deviceName}
+                        subtitle={`${ip}:${port} · ${platform} · v${version}`}
+                      />
 
                       {connecting === deviceId ? (
                         <span className="text-caption text-ink-400 font-normal">
-                          连接中...
+                          等待对方确认...
                         </span>
                       ) : (
                         <div className="text-ink-300">

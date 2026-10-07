@@ -1,19 +1,23 @@
 import { setDeviceName } from '@/api/discovery'
-import { windowBasicOperation } from '@/api/tauri'
-// import { innerToast, Logo, Select, Tip } from '@/components'
-import { innerToast, Select, Tip } from '@/components'
-import { useStore } from '@/store'
+import { openFile } from '@/api/fs'
+import { restartApp } from '@/api/tauri'
+import { listTrustedDevices, revokeTrustedDevice } from '@/api/trust'
 import {
-  IconArrowLeft,
-  // IconBrandGithub,
-  IconEdit,
-  IconFolder
-} from '@tabler/icons-react'
-import { invoke } from '@tauri-apps/api/core'
+  BackButton,
+  innerToast,
+  // Logo,
+  PeerIdentity,
+  Select,
+  Tip
+} from '@/components'
+import { useStore } from '@/store'
+import type { TrustedDevice } from '@/types/trust'
+// import { IconBrandGithub, IconEdit, IconFolder } from '@tabler/icons-react'
+import { IconEdit, IconFolder } from '@tabler/icons-react'
 import { open } from '@tauri-apps/plugin-dialog'
 // import { openUrl } from '@tauri-apps/plugin-opener'
 import { check } from '@tauri-apps/plugin-updater'
-import { Button, Switch } from 'ono-react-element'
+import { Button, formatTime, Switch } from 'ono-react-element'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { FontPicker } from './FontPicker'
@@ -42,11 +46,46 @@ export default () => {
     'fontScale'
   ])
   const [downloading, setLoading] = useState(false)
+  // 已信任设备只在设置页用，所以随进随查、不放进全局 store ——
+  // 它会被后端在别处改写（用户接受 / 超时），放进 store 反而要额外同步一份。
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>([])
   const navigate = useNavigate()
   const location = useLocation()
 
   // 设置页与首页共用同一个窗口，路由切换即返回，需要一个显式的返回入口
   const handleBack = () => navigate('/')
+
+  /** 最近连接时间：Unix 毫秒 → `YYYY-MM-DD HH:mm` */
+  const formatTrustedTime = (ms: number) => {
+    // 空值必须自己拦：formatTime 对 0 会给出 1970-01-01 08:00，
+    // 而字段缺失（undefined/null）时它直接抛异常，会连累整个设置页
+    if (!ms) return '—'
+    // 库的默认格式带秒，这里显式去掉
+    return formatTime(ms, 'YYYY-MM-DD hh:mm')
+  }
+
+  const refreshTrustedDevices = async () => {
+    try {
+      setTrustedDevices(await listTrustedDevices())
+    } catch (e) {
+      innerToast.error(`读取已信任设备失败: ${e}`)
+    }
+  }
+
+  // 撤销不是拉黑：对方下次连接会重新弹窗确认，所以不做二次确认
+  const handleRevoke = async (deviceId: string, deviceName: string) => {
+    try {
+      await revokeTrustedDevice(deviceId)
+      await refreshTrustedDevices()
+      innerToast.success(`已取消对「${deviceName}」的信任`)
+    } catch (e) {
+      innerToast.error(`取消信任失败: ${e}`)
+    }
+  }
+
+  useEffect(() => {
+    refreshTrustedDevices()
+  }, [])
 
   // 托盘「关于」跳过来时，得把视图带到页面底部的关于区块 —— 否则用户明明按的是
   // 「关于」，眼睛落到的却是顶部的「保存路径」。依赖 location.key 而不是 location.state：
@@ -66,7 +105,7 @@ export default () => {
       txt: '打开文件夹',
       icon: <IconFolder size={18} stroke={2} />,
       onClick: () => {
-        invoke('open_file', { path: savePath })
+        openFile(savePath)
       }
     },
     {
@@ -92,14 +131,14 @@ export default () => {
     if (update) {
       await update.downloadAndInstall()
       useStore.setState({ canUpdate: false })
-      windowBasicOperation({ type: 'restart' })
+      restartApp()
     }
   }
 
-  // 外链一律交给系统默认浏览器：Tauri 的 webview 会拦截 `<a href>` 发起的**外部导航**
-  // （点了不会离开应用，也不会报错），所以必须显式调 opener。所需权限
-  // `opener:default` 已在 capabilities/default.json 里，且已含 allow-default-urls
-  // ⇒ https 在白名单内，不需要额外加 scope。
+  // // 外链一律交给系统默认浏览器：Tauri 的 webview 会拦截 `<a href>` 发起的**外部导航**
+  // // （点了不会离开应用，也不会报错），所以必须显式调 opener。所需权限
+  // // `opener:default` 已在 capabilities/default.json 里，且已含 allow-default-urls
+  // // ⇒ https 在白名单内，不需要额外加 scope。
   // const handleOpenRepo = async () => {
   //   try {
   //     await openUrl('https://github.com/onoxm/easy2send')
@@ -240,6 +279,43 @@ export default () => {
       )
     },
     {
+      title: '已信任设备',
+      children: (
+        <div className="flex flex-col gap-2 flex-1 min-w-0 py-0.5">
+          {trustedDevices.length === 0 ? (
+            <p className="text-ink-500 text-body/[1.4167] font-normal">
+              还没有已信任的设备。对方首次连接、你点「接受」之后会出现在这里
+            </p>
+          ) : (
+            trustedDevices.map(({ deviceId, deviceName, lastSeen }) => (
+              <div
+                key={deviceId}
+                className="w-full flex items-center gap-3 px-3 py-2 border border-line-200 rounded-md"
+              >
+                <PeerIdentity
+                  name={deviceName || '未知设备'}
+                  subtitle={`最近连接 ${formatTrustedTime(lastSeen)}`}
+                />
+                {/* 借用设置页「返回」按钮的次要按钮规格（描边 + surface.base +
+                    control 圆角 + state-neutral），不为它单开一套观感 */}
+                <button
+                  className="shrink-0 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-control text-ink-700 text-body/[1.4167] font-medium state-neutral"
+                  onClick={() => handleRevoke(deviceId, deviceName)}
+                >
+                  取消信任
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      ),
+      help: (
+        <p className="text-ink-600 text-caption/[1.4545] font-normal">
+          这些设备再次连接会直接放行、不再询问。取消后对方下次连接会重新请求确认。
+        </p>
+      )
+    },
+    {
       title: '自动更新',
       children: (
         <>
@@ -326,17 +402,7 @@ export default () => {
   return (
     <div className="w-full flex flex-col gap-3 py-5 px-7 bg-canvas">
       <div className="flex items-center gap-3">
-        <button
-          className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0 state-neutral"
-          onClick={handleBack}
-        >
-          <span className="text-ink-600">
-            <IconArrowLeft size={14} stroke={2} />
-          </span>
-          <span className="text-ink-700 text-body/[1.4167] font-medium">
-            返回
-          </span>
-        </button>
+        <BackButton onClick={handleBack} />
         <div className="flex-1 flex flex-col gap-.75">
           {/* 18/26 是设计稿的一次性数值、没走 --font-size-* 令牌，但同样要跟着字号缩放
               走（否则缩放拉到 130% 时这个标题会显得偏小）。见 global.css 的 .page-title */}

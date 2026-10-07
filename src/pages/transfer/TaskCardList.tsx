@@ -1,5 +1,6 @@
+import { openFile } from '@/api/fs'
 import { useStore } from '@/store'
-import { TaskStatus, TransferTask } from '@/types/transfer'
+import type { TaskStatus, TransferTask } from '@/types'
 import {
   IconExternalLink,
   IconFile,
@@ -8,7 +9,6 @@ import {
   IconFolder,
   IconFolderOpen
 } from '@tabler/icons-react'
-import { invoke } from '@tauri-apps/api/core'
 import { join } from '@tauri-apps/api/path'
 import {
   chainClassNames,
@@ -29,6 +29,10 @@ const CARD_HEIGHT = 92
 /** 卡片投影：即设计稿的 elevation-1（两层 DROP_SHADOW），走全局 token 不再内联 */
 const CARD_SHADOW = 'shadow-[var(--shadow-e1)]'
 
+/** 卡片右侧的图标按钮：填充形态（常驻 surface.muted 底、无描边），悬停叠 6% 黑遮罩 */
+const ICON_BTN =
+  'shrink-0 w-8 h-8 flex justify-center items-center rounded-chip bg-surface-muted text-ink-600 state-tint hover:text-ink-900 cursor-pointer'
+
 const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
   file: <IconFile size={20} stroke={2} />,
   folder: <IconFolder size={20} stroke={2} />,
@@ -36,32 +40,57 @@ const KIND_ICON: Record<TransferTask['kind'], ReactNode> = {
   unknown: <IconFileUnknown size={20} stroke={2} />
 }
 
-const statusText: Record<TaskStatus, string> = {
-  queued: '排队中',
-  running: '传输中',
-  done: '完成',
-  error: '失败'
-}
-
-/** 徽标配色。排队中用的是 line.100，色板里没有 ink.100（写了不生效、徽标会变透明） */
-const statusColor: Record<TaskStatus, string> = {
-  queued: 'bg-line-100 text-ink-500',
-  running: 'bg-brand-100 text-brand-700',
-  done: 'bg-success-100 text-success-600',
-  error: 'bg-danger-100 text-danger-600'
-}
-
-/** 排队中的进度条是空轨道（设计稿未画填充） */
-const statusProgressColor: Record<TaskStatus, string> = {
-  queued: '',
-  running: 'bg-brand-500',
-  done: 'bg-success-600',
-  error: 'bg-danger-600'
+/**
+ * 状态 → 文案 / 徽标配色 / 进度条配色。
+ *
+ * 三张键集完全相同的表合成一张：新加状态时漏改其中一张**不会报错**，只会安静地
+ * 少一处样式（徽标或进度条变透明），合起来才能让「加一个状态」只有一处要动。
+ *
+ * 两处刻意的配色选择：
+ * - 徽标底用 line.100，色板里没有 ink.100（写了不生效、徽标会变透明）
+ * - 中断用中性灰而不是 danger：这是用户自己点「断开连接」的结果，不是出错。
+ *   跟 error 一样标红，用户会以为传输坏了。进度条同理保留已传进度、只换颜色 ——
+ *   停在半途本身就是「传到一半停了」的表达，用空轨道会把「已经传了多少」一起抹掉
+ */
+const STATUS_META: Record<
+  TaskStatus,
+  { label: string; badge: string; bar: string }
+> = {
+  queued: { label: '排队中', badge: 'bg-line-100 text-ink-500', bar: '' },
+  running: {
+    label: '传输中',
+    badge: 'bg-brand-100 text-brand-700',
+    bar: 'bg-brand-500'
+  },
+  done: {
+    label: '完成',
+    badge: 'bg-success-100 text-success-600',
+    bar: 'bg-success-600'
+  },
+  interrupted: {
+    label: '已中断',
+    badge: 'bg-line-100 text-ink-500',
+    bar: 'bg-ink-300'
+  },
+  error: {
+    label: '失败',
+    badge: 'bg-danger-100 text-danger-600',
+    bar: 'bg-danger-600'
+  }
 }
 
 const size = (bytes: number) => formatFileSize(bytes, { decimalPlaces: 1 })
 
-/** 用时：mm:ss，超过 1 小时补上小时段 */
+/**
+ * 用时：mm:ss，超过 1 小时补上小时段
+ *
+ * 不用库的 `formatSecond`（2026-10-07 实测，23 个用例只有 5 个与本函数一致）：
+ * ① 总秒数 < 100 时**必带小数后缀**，而小数位恒为 0 —— 3.7 秒会显示成 `00:03.00`，
+ *    那 0.7 秒被吞掉了，看着却像精确到 1/100 秒，是**假精度**，比截断到 `00:03` 更误导；
+ * ② 1–9 小时会**补零小时段**（`1:00:00` → `01:00:00`），与「无小时就不显示小时段」的设计冲突。
+ * 两个差异都无法通过参数规避（它的 format 只认 `'hh:mm:ss'`，反而更糟）。
+ * 另注：它收的是**秒**，直接把毫秒传进去会得到 `1018:03:20` 这种值。
+ */
 const formatDuration = (ms: number) => {
   const sec = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(sec / 3600)
@@ -123,8 +152,18 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
       startedAt && finishedAt
         ? `用时 ${formatDuration(finishedAt - startedAt)}`
         : ''
+  } else if (status === 'interrupted') {
+    // 中断：留住「传到哪儿了」。用户点完断开最想知道的就是断在什么位置，
+    // 只报总大小等于把这条信息丢了
+    primaryText = total
+      ? `${size(sent)} / ${size(total)} · 已中断`
+      : `${size(sent)} · 已中断`
+    secondaryText = '连接已断开'
   } else {
-    primaryText = `${size(total)} · 已中断`
+    // 失败态原先写的是「已中断」—— 那是当时还没有中断态、只能借失败态来表达。
+    // 现在中断有了自己的状态，这里继续写「已中断」会让两者在界面上无法区分，
+    // 所以按它的真实含义写成失败，也与徽标的「失败」对齐
+    primaryText = `${size(total)} · 传输失败`
     secondaryText = errorMessage ?? ''
   }
 
@@ -155,12 +194,12 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
           <div
             className={chainClassNames(
               'shrink-0 py-.5 px-2 rounded-pill text-caption/[1.4545] font-medium',
-              statusColor[status]
+              STATUS_META[status].badge
             )}
           >
             {status === 'running' && direction === 'receive'
               ? '接收中'
-              : statusText[status]}
+              : STATUS_META[status].label}
           </div>
         </div>
 
@@ -168,7 +207,7 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
           <div
             className={chainClassNames(
               'h-full transition-all duration-200 rounded-pill',
-              statusProgressColor[status]
+              STATUS_META[status].bar
             )}
             style={{ width: `${percent.toFixed(2)}%` }}
           />
@@ -199,20 +238,18 @@ const TaskCard = ({ task }: { task: TransferTask }) => {
       {status === 'done' && direction === 'receive' && savePath && (
         <>
           <button
-            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip bg-surface-muted text-ink-600 state-tint hover:text-ink-900 cursor-pointer"
+            className={ICON_BTN}
             title="打开文件"
             aria-label="打开文件"
-            onClick={async () =>
-              invoke('open_file', { path: await join(savePath, name) })
-            }
+            onClick={async () => openFile(await join(savePath, name))}
           >
             <IconExternalLink size={15} stroke={2} />
           </button>
           <button
-            className="shrink-0 w-8 h-8 flex justify-center items-center rounded-chip bg-surface-muted text-ink-600 state-tint hover:text-ink-900 cursor-pointer"
+            className={ICON_BTN}
             title="打开保存目录"
             aria-label="打开保存目录"
-            onClick={() => invoke('open_file', { path: savePath })}
+            onClick={() => openFile(savePath)}
           >
             <IconFolderOpen size={15} stroke={2} />
           </button>

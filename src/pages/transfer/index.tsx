@@ -1,16 +1,18 @@
+import { notifyDisconnect } from '@/api/discovery'
 import {
+  cancelTransferTasks,
   createTransferTasks,
+  openFile,
   startTransferTask,
   type TransferTaskSeed
 } from '@/api/fs'
 import { stopWebUpload } from '@/api/webupload'
-import { Layout, PlatformIcon } from '@/components'
+import { BackButton, confirmDialog, Layout, PlatformIcon } from '@/components'
 import { useNotification, useQuery, useTauriDrag } from '@/hooks'
 import { useStore } from '@/store'
-import { TransferTask, TransferType } from '@/types/transfer'
+import type { TransferTask, TransferType } from '@/types'
 import {
   IconArrowBarToDown,
-  IconArrowLeft,
   IconArrowUp,
   IconFolder
 } from '@tabler/icons-react'
@@ -22,10 +24,28 @@ import { useNavigate } from 'react-router'
 import { EmptyPanel } from './EmptyPanel'
 import { TaskCardList } from './TaskCardList'
 
+/** 终态：进入这些状态时要记下结束时刻（卡片据此算「用时」） */
+const isEndStatus = (status?: TransferTask['status']) =>
+  status === 'done' || status === 'error' || status === 'interrupted'
+
+/** v2 传输事件里 progress 的字段（send / receive 两种事件的 payload 完全一致） */
+interface ProgressPayload {
+  task_id: string
+  sent: number
+  total: number
+  percent: number
+  speed?: number
+  name?: string
+  kind?: TransferTask['kind']
+  entry_index?: number
+  entry_count?: number
+}
+
 export default () => {
-  const { connectedDevice, concurrentUploads, ip, port } = useStore([
+  const { connectedDevice, concurrentUploads, ip, port, savePath } = useStore([
     'ip',
     'port',
+    'savePath',
     'connectedDevice',
     'concurrentUploads'
   ])
@@ -75,10 +95,7 @@ export default () => {
           startedAt:
             old?.startedAt ?? (patch.status === 'running' ? now : undefined),
           finishedAt:
-            old?.finishedAt ??
-            (patch.status === 'done' || patch.status === 'error'
-              ? now
-              : undefined),
+            old?.finishedAt ?? (isEndStatus(patch.status) ? now : undefined),
           createdAt: old?.createdAt ?? now
         }
       }
@@ -174,31 +191,46 @@ export default () => {
   // ---------------- 监听 v2 事件（按 task_id 分条更新） ----------------
   useEffect(() => {
     let unmounted = false
-    const handleSendProgress = (ev: Event<Record<string, unknown>>) => {
-      const p = ev.payload as {
-        task_id: string
-        sent: number
-        total: number
-        percent: number
-        speed?: number
-        name?: string
-        kind?: TransferTask['kind']
-        entry_index?: number
-        entry_count?: number
-      }
+
+    /** send / receive 的 progress 事件字段完全一致，只有方向不同 —— 合成一条 */
+    const applyProgress = (
+      ev: Event<ProgressPayload>,
+      direction: 'send' | 'receive'
+    ) => {
+      const p = ev.payload
       if (unmounted) return
       upsertTask(p.task_id, {
-        direction: 'send',
+        direction,
         sent: p.sent,
         total: p.total,
         percent: p.percent,
         speed: p.speed ?? 0,
+        status: 'running',
+        // name / kind 缺省时**不覆盖**已有值：receive-complete 事件默认填
+        // 「传输完成」，覆盖上去会把 start/progress 已设置的真实文件名换掉
         ...(p.name !== undefined ? { name: p.name } : {}),
         ...(p.kind !== undefined ? { kind: p.kind } : {}),
-        status: 'running',
         entryIndex: p.entry_index,
         entryCount: p.entry_count
       })
+    }
+
+    /**
+     * send 任务收尾：归还一个并发额度，并把排队中的下一个补上去。
+     *
+     * 通知只给 complete / error ——「断开连接」造成的中断不给，那是用户自己的
+     * 动作、页面随即就要卸载，再弹一句「发送完成」是错的。
+     */
+    const settleSend = (notify: boolean) => {
+      runningCountRef.current = Math.max(0, runningCountRef.current - 1)
+      flushSchedule()
+      if (
+        notify &&
+        runningCountRef.current === 0 &&
+        seedsQueueRef.current.length === 0
+      ) {
+        sendNotification('发送完成')
+      }
     }
     const handleSendComplete = (ev: Event<Record<string, unknown>>) => {
       const p = ev.payload as {
@@ -214,11 +246,7 @@ export default () => {
         ...(p.name !== undefined ? { name: p.name } : {}),
         ...(p.kind !== undefined ? { kind: p.kind } : {})
       })
-      runningCountRef.current = Math.max(0, runningCountRef.current - 1)
-      flushSchedule()
-      if (runningCountRef.current === 0 && seedsQueueRef.current.length === 0) {
-        sendNotification('发送完成')
-      }
+      settleSend(true)
     }
     const handleSendError = (ev: Event<Record<string, unknown>>) => {
       const p = ev.payload as { task_id: string; message: string }
@@ -228,11 +256,17 @@ export default () => {
         status: 'error',
         errorMessage: p.message
       })
-      runningCountRef.current = Math.max(0, runningCountRef.current - 1)
-      flushSchedule()
-      if (runningCountRef.current === 0 && seedsQueueRef.current.length === 0) {
-        sendNotification('发送完成')
-      }
+      settleSend(true)
+    }
+
+    // 后端确认任务已停下。走「断开连接」时通常收不到这条 —— 页面那时已经卸载、
+    // 监听器也被清掉了（那条路径由 disconnectNow 自己标记）。留着它是为了将来
+    // 「取消单个任务」这类不离开页面的中断，以及后端先行中断的情况
+    const handleSendCancelled = (ev: Event<Record<string, unknown>>) => {
+      const p = ev.payload as { task_id: string }
+      if (unmounted) return
+      upsertTask(p.task_id, { direction: 'send', status: 'interrupted' })
+      settleSend(false)
     }
 
     const handleRecvStart = (ev: Event<Record<string, unknown>>) => {
@@ -262,32 +296,6 @@ export default () => {
         recvCompleteTimerRef.current = null
       }
     }
-    const handleRecvProgress = (ev: Event<Record<string, unknown>>) => {
-      const p = ev.payload as {
-        task_id: string
-        sent: number
-        total: number
-        percent: number
-        speed?: number
-        name?: string
-        kind?: TransferTask['kind']
-        entry_index?: number
-        entry_count?: number
-      }
-      if (unmounted) return
-      upsertTask(p.task_id, {
-        direction: 'receive',
-        sent: p.sent,
-        total: p.total,
-        percent: p.percent,
-        speed: p.speed ?? 0,
-        status: 'running',
-        ...(p.name !== undefined ? { name: p.name } : {}),
-        ...(p.kind !== undefined ? { kind: p.kind } : {}),
-        entryIndex: p.entry_index,
-        entryCount: p.entry_count
-      })
-    }
     const handleRecvComplete = (ev: Event<Record<string, unknown>>) => {
       const p = ev.payload as { task_id: string }
       if (unmounted) return
@@ -316,11 +324,16 @@ export default () => {
     }
 
     const proms = [
-      listen('send-progress-v2', handleSendProgress),
+      listen<ProgressPayload>('send-progress-v2', ev =>
+        applyProgress(ev, 'send')
+      ),
       listen('send-complete-v2', handleSendComplete),
       listen('send-error-v2', handleSendError),
+      listen('send-cancelled-v2', handleSendCancelled),
       listen('receive-start-v2', handleRecvStart),
-      listen('receive-progress-v2', handleRecvProgress),
+      listen<ProgressPayload>('receive-progress-v2', ev =>
+        applyProgress(ev, 'receive')
+      ),
       listen('receive-complete-v2', handleRecvComplete)
     ]
 
@@ -342,13 +355,68 @@ export default () => {
 
   if (!connectedDevice) return null
 
-  const handleBack = () => {
+  // 结束本次会话：停掉本机为它开启的服务、清掉连接状态、回首页。
+  // 「返回」与「断开连接」都走这里 —— 前者不打断进行中的任务，后者会。
+  const teardown = () => {
     // 手机上传模式：退出传输页时停止 HTTP 服务器
     if (connectedDevice?.deviceId === 'web-upload') {
       stopWebUpload().catch(() => {})
     }
     useStore.setState({ connectedDevice: null })
     navigate('/')
+  }
+
+  const handleBack = () => teardown()
+
+  /** 把任务标成「已中断」。走 upsertTask 是为了让结束时刻等字段由它统一补齐 */
+  const markInterrupted = (ids: string[]) => {
+    for (const id of ids) upsertTask(id, { status: 'interrupted' })
+  }
+
+  const disconnectNow = (pending: TransferTask[]) => {
+    if (pending.length > 0) {
+      // 1) 让后端真的停下来。只改前端状态的话，文件其实还在往外发
+      const startedIds = pending
+        .filter(t => t.direction === 'send' && t.status === 'running')
+        .map(t => t.id)
+      if (startedIds.length > 0) {
+        cancelTransferTasks(startedIds).catch(() => {})
+      }
+      // 2) 还没轮到发的直接从队列里丢掉，否则调度器会接着把它们发出去
+      seedsQueueRef.current = []
+      runningCountRef.current = 0
+      // 3) 前端状态立刻落定。不等后端回 send-cancelled-v2 —— 页面随即就要卸载，
+      //    那时候监听器已经被清掉，事件没人收了
+      markInterrupted(pending.map(t => t.id))
+    }
+
+    // 通知对方也结束这次会话。失败静默：断开是本机单方面就能完成的动作，
+    // 对方可能已经关机、断网，没理由因此卡住。手机网页端没有这条协议，跳过。
+    if (addr && connectedDevice?.deviceId !== 'web-upload') {
+      notifyDisconnect(addr).catch(() => {})
+    }
+
+    teardown()
+  }
+
+  /** 断开连接：结束会话并通知对方，对方收到后也会回到首页 */
+  const handleDisconnect = () => {
+    // 进行中的任务是「断开」与「返回」的全部区别 —— 有它们才值得问一句。
+    // 接收方向也算：对方会因这条断开通知而停发，我这边的接收同样会断
+    const pending = Object.values(tasks).filter(
+      t => t.status === 'running' || t.status === 'queued'
+    )
+    if (pending.length === 0) {
+      disconnectNow([])
+      return
+    }
+    confirmDialog({
+      title: '断开连接',
+      description: `还有 ${pending.length} 个任务未完成，断开后会被中断`,
+      confirmText: '断开',
+      danger: true,
+      onConfirm: () => disconnectNow(pending)
+    })
   }
 
   const visibleTasks = Object.values(tasks)
@@ -359,17 +427,7 @@ export default () => {
     <Layout>
       <div className="h-full flex flex-col w-[92%] gap-[14px]">
         <div className="flex gap-3 items-center">
-          <button
-            className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-[10px] shrink-0 state-neutral"
-            onClick={handleBack}
-          >
-            <span className="text-ink-600">
-              <IconArrowLeft size={14} stroke={2} />
-            </span>
-            <span className="text-ink-700 text-body/[1.4167] font-medium">
-              返回
-            </span>
-          </button>
+          <BackButton onClick={handleBack} />
 
           <div className="flex-1 flex flex-col gap-.75">
             <div className="flex items-center gap-[7px] text-ink-900">
@@ -387,7 +445,10 @@ export default () => {
             </div>
           </div>
 
-          <button className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[1.4167] font-medium py-[7.5px] px-3 state-neutral">
+          <button
+            className="bg-surface-base border border-line-200 rounded-md text-ink-700 text-body/[1.4167] font-medium py-[7.5px] px-3 state-neutral"
+            onClick={handleDisconnect}
+          >
             断开连接
           </button>
         </div>
@@ -398,17 +459,16 @@ export default () => {
             className="bg-line-100 border border-line-200 flex gap-[3px] p-[3px] rounded-md"
             currentIndex={tabList.findIndex(t => t.type === activeTab)}
             slider={Slider => (
-              /* 选中滑块单独带一档投影（设计稿 3:154 / 3:631：0 1 3 rgba(15,23,41,.10)），
-                 与卡片 e1 不同源，所以另立一个令牌。 */
               <Slider className="bg-surface-base rounded-md shadow-[var(--shadow-segment)]" />
             )}
           >
             {({ item: { type, txt, icon }, isActive }) => (
               <button
                 className={chainClassNames(
-                  'flex items-center gap-[7px] h-8 px-3.5',
+                  'flex items-center gap-[7px] h-8 px-3.5 disabled:cursor-not-allowed',
                   isActive ? 'text-ink-900' : 'text-ink-500'
                 )}
+                disabled={type === 'send' && connectedDevice.platform === 'web'}
                 onClick={() => setActiveTab(type)}
               >
                 {icon}
@@ -426,7 +486,10 @@ export default () => {
             )}
           </AutoSliderList>
 
-          <button className="bg-surface-base flex items-center border border-line-200 gap-[7px] rounded-md py-[8.5px] px-3.5 state-neutral">
+          <button
+            className="bg-surface-base flex items-center border border-line-200 gap-[7px] rounded-md py-[8.5px] px-3.5 state-neutral"
+            onClick={() => openFile(savePath)}
+          >
             <span className="text-ink-600">
               <IconFolder size={15} stroke={2} />
             </span>

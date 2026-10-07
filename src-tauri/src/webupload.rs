@@ -112,19 +112,13 @@ pub async fn stop_web_upload(
     }
 }
 
-/// 查询当前手机上传服务器监听端口（未启动返回 0）
-#[tauri::command]
-pub async fn get_web_upload_port(
-    control: tauri::State<'_, Arc<Mutex<WebUploadServerControl>>>,
-) -> Result<u16, String> {
-    Ok(control.lock().await.port)
-}
-
 /// 生成配对 token（一次性，5 分钟有效）
 ///
-/// 前端在弹出二维码弹窗时调用，将返回的 token 拼入二维码 URL：
-///   http://<ip>:<port>/?token=<TOKEN>
-/// 手机扫码后网页自动取 token 调 POST /api/pair 完成配对。
+/// 前端在弹出二维码弹窗时调用，将返回的 token 拼入二维码 URL 的 **fragment**：
+///   http://<ip>:<port>/#token=<TOKEN>
+/// 之所以用 fragment 而不是 query：fragment 不会随 HTTP 请求发往服务器，
+/// 因此 token 不会落进服务端访问日志，也不会出现在同源样式/脚本请求的 Referer 中。
+/// 网页里的脚本读出 token 后立刻 replaceState 抹掉它，再调 POST /api/pair 完成配对。
 #[tauri::command]
 pub async fn create_pair_token(
     control: tauri::State<'_, Arc<Mutex<WebUploadServerControl>>>,

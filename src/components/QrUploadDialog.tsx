@@ -1,8 +1,8 @@
-import { useCreateQRCode } from '@/hooks'
+import { useCreateQRCode, useTauriListener } from '@/hooks'
 import { IconCopy } from '@tabler/icons-react'
-import { listen } from '@tauri-apps/api/event'
-import { copyText, portalRenderer, TemplateDialog } from 'ono-react-element'
+import { copyText, portalRenderer } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
+import { DialogShell, DialogTitle } from './DialogShell'
 import { innerToast } from './toast'
 
 interface QrUploadDialogProps {
@@ -34,8 +34,6 @@ const QrUploadDialog = ({
   const pairedRef = useRef(false)
 
   useEffect(() => {
-    let unlistenPaired: (() => void) | null = null
-
     const genQR = async () => {
       try {
         const qr = await createQRCode(url, {
@@ -52,21 +50,15 @@ const QrUploadDialog = ({
       }
     }
     genQR()
-
-    // 配对成功：标记已配对 + 关闭弹窗（只调 destroy 不触发 onClose，服务器保持运行）
-    listen('web-upload-paired', () => {
-      setStatus('手机已连接，正在跳转...')
-      pairedRef.current = true
-      setTimeout(() => destroy(), 600)
-    }).then(fn => {
-      unlistenPaired = fn
-    })
-
-    return () => {
-      if (unlistenPaired) unlistenPaired()
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 配对成功：标记已配对 + 关闭弹窗（只调 destroy 不触发 onClose，服务器保持运行）
+  useTauriListener('web-upload-paired', () => {
+    setStatus('手机已连接，正在跳转...')
+    pairedRef.current = true
+    setTimeout(() => destroy(), 600)
+  })
 
   // 用户手动关闭：未配对时停止服务器；已配对则仅销毁弹窗
   const handleClose = () => {
@@ -77,20 +69,16 @@ const QrUploadDialog = ({
   }
 
   return (
-    <TemplateDialog
-      className="flex flex-col items-center gap-5 bg-surface-base p-7 rounded-card shadow-[var(--shadow-e3)] w-140"
-      dialogClose={handleClose}
-      onContextMenu={e => e.preventDefault()}
-      animation={{ type: 'fade', startPosition: '30%' }}
-    >
+    <DialogShell className="w-140 p-7 gap-5 items-center" onClose={handleClose}>
       {enhancedDialogClose => (
         <>
-          <div className="flex flex-col gap-1.5 items-center">
-            <h1 className="text-ink-900 font-bold text-4.25/4.75">手机上传</h1>
-            <p className="text-body/[1.4167] text-ink-500 font-normal">
-              扫描二维码，将手机文件发送到电脑
-            </p>
-          </div>
+          <DialogTitle
+            title="手机上传"
+            description="扫描二维码，将手机文件发送到电脑"
+            size="compact"
+            className="items-center"
+          />
+
           {qrcode ? (
             <>
               <div className="border border-line-200 rounded-card shadow-[var(--shadow-e1)] overflow-hidden">
@@ -128,6 +116,7 @@ const QrUploadDialog = ({
               </p>
             </div>
           )}
+
           <button
             className="w-full h-9.5 text-ink-700 border border-line-200 rounded-control text-card/[1.4615] state-neutral"
             onClick={enhancedDialogClose}
@@ -136,7 +125,7 @@ const QrUploadDialog = ({
           </button>
         </>
       )}
-    </TemplateDialog>
+    </DialogShell>
   )
 }
 

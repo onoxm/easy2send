@@ -1,6 +1,6 @@
 [package]
 name = "easy2send"
-version = "0.3.1"
+version = "0.4.0"
 description = "Zero-config LAN file transfer tool"
 authors = ["onoxm"]
 repository = "https://github.com/onoxm/easy2send"
@@ -22,7 +22,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
-tauri-plugin-notification = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
 tauri-plugin-fs = "2"
@@ -41,6 +40,10 @@ notify-rust = "4" # 系统通知 + 点击回调（响应类型 wait_for_response
 uuid = { version = "1", features = ["v4"] } # 设备唯一标识生成
 socket2 = "0.5" # socket 缓冲区调优（SO_SNDBUF / SO_RCVBUF）
 fontdb = "0.24.0"
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["logging", "tls12", "ring"] }
+rustls = { version = "0.23.45", default-features = false, features = ["logging", "tls12", "ring", "std"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["ring"] }
+sha2 = "0.10"
 
 [profile.dev]
 opt-level = 1 # Use slightly better optimizations.

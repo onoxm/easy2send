@@ -1,5 +1,5 @@
 use super::state::WebUploadState;
-use crate::transfer::protocol::{emit_progress, new_task_id, safe_join, should_emit};
+use crate::transfer::protocol::{emit_progress, new_task_id, part_path_of, safe_join, should_emit};
 use anyhow::Result;
 use axum::body::Body as AxumBody;
 use axum::extract::State;
@@ -102,6 +102,10 @@ async fn js_handler() -> impl IntoResponse {
 /// 请求体 JSON: { "token": "<配对token>" }
 /// 校验成功：销毁配对 token（单次使用），签发 session token，emit web-upload-paired
 /// 校验失败：返回 401
+///
+/// token 只经请求体到达这里：二维码 URL 把它放在 fragment（#token=…）里，
+/// fragment 从不随 HTTP 请求发出，所以这个 handler 永远看不到 URL 上的 token，
+/// 也不该去解析 query —— 想改成 `?token=` 之前先想清楚这样会把 token 写进日志。
 #[derive(Deserialize)]
 struct PairRequest {
     token: String,
@@ -238,7 +242,10 @@ async fn upload_handler(
                 .into_response();
         }
     }
-    let mut file = match File::create(&file_path).await {
+    // 先写 `<目标名>.part`，上传完整后再改名到目标名：手机中途断线 / 切后台时，
+    // 目录里留下的是一个明确的半成品，而不是看起来正常、实际截断的同名文件。
+    let part_path = part_path_of(&file_path);
+    let mut file = match File::create(&part_path).await {
         Ok(f) => f,
         Err(e) => {
             return (
@@ -301,6 +308,19 @@ async fn upload_handler(
     }
 
     file.flush().await.ok();
+    // tokio 的 File 在 drop 时把关闭操作丢给后台线程，Windows 上 rename 一个句柄尚未
+    // 释放的文件会失败（os error 32）。into_std 拿到 std::fs::File 后同步 drop，确保句柄已关。
+    drop(file.into_std().await);
+    if let Err(e) = tokio::fs::rename(&part_path, &file_path).await {
+        let _ = state.app.emit(
+            "send-error-v2",
+            serde_json::json!({
+                "task_id": task_id,
+                "message": format!("落盘失败: {}", e),
+            }),
+        );
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("落盘失败: {}", e)).into_response();
+    }
 
     // 7. 最终进度（100%）+ 完成事件
     let _ = state.app.emit(

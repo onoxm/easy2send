@@ -41,6 +41,37 @@ pub const MODE_FOLDER_TASK: u8 = 5;
 /// 心跳查询：对端回复本机 deviceName，供 health_check 更新设备昵称
 /// （mdns-sd 0.13 ServiceResolved 仅首次触发，改昵称后对端收不到更新）
 pub const MODE_PING: u8 = 6;
+/// 单文件 + 来源 device_id + 16 字节 task_id（传输连接自带身份）
+///
+/// 布局：mode(1B) + device_id(4B 长度前缀 + UTF-8) + task_id(16B) + payload
+/// 接收端据此校验信任表；不带身份的旧模式（MODE_FILE_TASK 等）一律拒绝。
+pub const MODE_FILE_TASK_AUTH: u8 = 7;
+/// 文件夹 + 来源 device_id + 16 字节 task_id（布局同 MODE_FILE_TASK_AUTH）
+pub const MODE_FOLDER_TASK_AUTH: u8 = 8;
+/// 断开通知：本机主动结束与对端的会话时发送
+///
+/// 布局：mode(1B) + device_id(4B 长度前缀 + UTF-8) + device_name(4B 长度前缀 + UTF-8)
+///
+/// **单向通知，接收端读完即关、不回包。** 断开是「我说完了」而不是一次协商 ——
+/// 两端都回通知就会变成互相触发的循环。收到通知的一方只做本地清理（结束会话、回首页）。
+///
+/// 不带 task_id：它针对的是「这次会话」，不是某一条传输任务。
+pub const MODE_DISCONNECT: u8 = 9;
+
+// ---------- 连接应答 ----------
+/// 对端接受本次连接
+///
+/// 一个字节，两处复用：
+///   1. 握手（MODE_HANDSHAKE）之后 —— 接收端回写是否接纳该设备
+///   2. 传输（MODE_*_TASK_AUTH）开始前 —— 接收端回写信任校验是否通过
+pub const REPLY_ACCEPTED: u8 = 1;
+/// 对端拒绝本次连接（握手被拒 / 传输未授权）
+pub const REPLY_REJECTED: u8 = 0;
+/// 等待对端确认握手的超时（秒）
+///
+/// 发送端等回包、接收端等用户点「接受/拒绝」，两端共用同一上限：
+/// 接收端先超时则关掉等待、回拒绝；发送端先超时则放弃本次连接。
+pub const HANDSHAKE_CONFIRM_TIMEOUT_SECS: u64 = 30;
 
 // ---------- 条目类型（文件夹模式内） ----------
 pub const ENTRY_FILE: u8 = 0;
@@ -93,6 +124,32 @@ pub fn task_id_hex_to_bytes(hex: &str) -> [u8; 16] {
 
 // ---------- 字符串读写（4 字节 BE 长度前缀 + UTF-8） ----------
 
+/// 长度前缀字符串允许的最大字节数
+///
+/// 读侧必须在分配**之前**校验：`read_string` 位于未认证路径上（服务端先读 device_id，
+/// 之后才去查信任表），对端只要在 4 字节前缀里写个大数，就能让本进程去分配对应大小的
+/// 内存 —— 一个 TCP 包换 4GB 分配。协议里所有字符串（device_id / device_name /
+/// platform / version）实际都在几十字节量级，4KB 已是数量级上的宽裕，不会误伤正常对端。
+pub const MAX_STRING_LEN: usize = 4096;
+
+/// 文件夹条目相对路径允许的最大字节数
+///
+/// 给得比普通字符串宽：深层目录再叠中文文件名（UTF-8 下每字 3 字节）会明显更长。
+pub const MAX_PATH_LEN: usize = 32768;
+
+/// 未完成文件的临时后缀（配合 `part_path_of`）
+pub const PART_SUFFIX: &str = ".part";
+
+/// 在路径后追加临时后缀，得到「写到一半」的临时文件路径
+///
+/// 不用 `Path::with_extension` —— 它会把 `a.tar.gz` 换成 `a.tar.part`（丢掉 `.gz`），
+/// 直接拼在末尾才保住原文件的完整名字。
+pub fn part_path_of(path: &Path) -> PathBuf {
+    let mut os = path.as_os_str().to_os_string();
+    os.push(PART_SUFFIX);
+    PathBuf::from(os)
+}
+
 /// 写入长度前缀字符串
 pub async fn write_string<W: AsyncWrite + Unpin>(w: &mut W, s: &str) -> Result<()> {
     let len = s.len() as u32;
@@ -106,6 +163,10 @@ pub async fn read_string<R: AsyncRead + Unpin>(r: &mut R) -> Result<String> {
     let mut len_buf = [0u8; 4];
     r.read_exact(&mut len_buf).await?;
     let len = u32::from_be_bytes(len_buf) as usize;
+    // 校验必须在 vec! 之前：len 完全来自对端，不校验就等于把内存分配权交给了它
+    if len > MAX_STRING_LEN {
+        return Err(anyhow!("字符串长度 {} 超出上限 {}", len, MAX_STRING_LEN));
+    }
     let mut buf = vec![0u8; len];
     r.read_exact(&mut buf).await?;
     Ok(String::from_utf8(buf)?)
@@ -185,23 +246,6 @@ pub async fn collect_entries(root: &Path, out: &mut Vec<(u8, PathBuf)>) -> Resul
         out.push((ENTRY_FILE, root.to_path_buf()));
     }
     Ok(())
-}
-
-/// 计算路径总大小（文件夹递归求和，仅统计文件）
-pub async fn calc_path_size(path: &Path) -> Result<u64> {
-    if path.is_file() {
-        Ok(tokio::fs::metadata(path).await?.len())
-    } else {
-        let mut total = 0u64;
-        let mut entries: Vec<(u8, PathBuf)> = Vec::new();
-        collect_entries(path, &mut entries).await?;
-        for (t, p) in &entries {
-            if *t == ENTRY_FILE {
-                total += tokio::fs::metadata(p).await?.len();
-            }
-        }
-        Ok(total)
-    }
 }
 
 /// 生成 16 字节 UUID v4（task_id），输出成 32 位十六进制字符串

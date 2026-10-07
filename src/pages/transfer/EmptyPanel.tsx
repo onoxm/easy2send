@@ -1,4 +1,4 @@
-import { TransferType } from '@/types/transfer'
+import type { TransferType } from '@/types'
 import { IconDownload, IconSend } from '@tabler/icons-react'
 
 export const EmptyPanel = ({
@@ -22,7 +22,7 @@ export const EmptyPanel = ({
         {tab === 'send' ? (
           <IconSend size={36} stroke={2} />
         ) : (
-          <IconDownload stroke={2} />
+          <IconDownload size={36} stroke={2} />
         )}
       </div>
       <div className="text-body/[1.4167] text-ink-600">

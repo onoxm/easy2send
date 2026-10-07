@@ -12,8 +12,6 @@
     "core:window:allow-show",
     "core:window:allow-set-always-on-top",
     "opener:default",
-    "notification:allow-notify",
-    "notification:allow-request-permission",
     "process:allow-restart",
     "process:allow-exit",
     "dialog:allow-save",

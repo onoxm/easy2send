@@ -1,5 +1,5 @@
 import { Linux } from '@/components'
-import { Platform } from '@/types/discovery'
+import type { Platform } from '@/types'
 import {
   IconBrandAppleFilled,
   IconBrandWindows,

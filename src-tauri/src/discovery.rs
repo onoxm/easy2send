@@ -18,13 +18,15 @@ pub mod state;
 
 use crate::common::hostname_ip::lan_ips_csv;
 use crate::discovery::health::health_check;
+use crate::tls::DeviceIdentity;
 // re-export 供 lib.rs 构造默认状态
 pub use crate::discovery::state::{DiscoveryState, SharedDiscoveryState};
 
 use mdns_sd::ServiceDaemon;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 // ---------- 对外数据结构 ----------
 
@@ -161,10 +163,13 @@ pub async fn start_discovery(
     //    注：mdns-sd 的 ServiceResolved 不定期重触发，需 TCP 验证保活
     let health_state: SharedDiscoveryState = state.inner().clone();
     let health_app = app.clone();
+    // 心跳连接同样走加密链路（对端只接受 TLS 连接），所以也要带上本机身份
+    let health_identity: Arc<DeviceIdentity> = app.state::<Arc<DeviceIdentity>>().inner().clone();
     let health_task = tauri::async_runtime::spawn(async move {
         health_check(
             health_state,
             health_app,
+            health_identity,
             Duration::from_secs(10),
             Duration::from_secs(30),
         )

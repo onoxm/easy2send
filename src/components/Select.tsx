@@ -47,7 +47,7 @@ export const Select = ({
       {(option, selected) => (
         <span
           className={chainClassNames(
-            'py-1.5 px-2.5 hover:bg-surface-mute text-ink-900 text-card/4.75 hover:bg-line-100 block rounded-sm',
+            'py-1.5 px-2.5 text-ink-900 text-card/4.75 hover:bg-line-100 block rounded-sm',
             selected ? 'bg-brand-50 text-brand-600' : ''
           )}
           style={{

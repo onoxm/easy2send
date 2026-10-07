@@ -1,14 +1,19 @@
-import { setUpdateDismissed, windowBasicOperation } from '@/api/tauri'
+import { restartApp, setUpdateDismissed } from '@/api/tauri'
 import { useStore } from '@/store'
 import { Update } from '@tauri-apps/plugin-updater'
 import {
   Button,
   chainClassNames,
   formatFileSize,
-  portalRenderer,
-  TemplateDialog
+  portalRenderer
 } from 'ono-react-element'
 import { useRef, useState } from 'react'
+import {
+  DialogActions,
+  DialogShell,
+  DialogTitle,
+  btnClass
+} from './DialogShell'
 
 interface UpdateDialogProps {
   update: Update
@@ -94,7 +99,7 @@ const UpdateDialog = ({
 
     setMessage('更新安装完成，应用即将重启。')
     useStore.setState({ canUpdate: false })
-    windowBasicOperation({ type: 'restart' })
+    restartApp()
   }
 
   // 取消更新：标记本次启动期间已取消，避免其它窗口再次弹窗
@@ -108,100 +113,100 @@ const UpdateDialog = ({
   const notes = update.body?.trim()
 
   const btnList = [
+    { text: '稍后再说', variant: 'secondary' as const, onClick: handleCancel },
     {
-      text: '稍后再说',
-      className: 'border border-line-200 text-ink-700 state-neutral',
-      onClick: handleCancel
-    },
-    {
-      text: '立即更新',
       /* ono 的 Button 默认 type=primary，自带 .ono-btn-primary:hover{opacity:.9}，
          会在设计稿的 8% 黑遮罩之上再压一层透明度，这里用 hover:opacity-100 顶掉。 */
-      className:
-        'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand hover:opacity-100',
+      text: '立即更新',
+      variant: 'primary' as const,
       onClick: handleConfirm
     }
   ]
 
   return (
-    <TemplateDialog
-      className="w-130 min-h-69 p-6 bg-surface-base border border-line-200 rounded-card shadow-[var(--shadow-e3)] flex flex-col gap-4"
-      dialogClose={() => {
+    <DialogShell
+      className="w-130 min-h-69 p-6 gap-4 border border-line-200"
+      onClose={() => {
         if (!loading) handleCancel()
       }}
-      onContextMenu={e => e.preventDefault()}
     >
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-base/5.75 text-ink-900 font-bold">
-          发现新版本 v{update.version}
-        </h1>
-        <p className="text-ink-500 text-body/[1.4167] font-normal">
-          当前版本 v{update.currentVersion}
-        </p>
-      </div>
+      {/* 骨架的 children 是「取关闭函数」的 render prop，这里忽略入参即可：
+          两个按钮各自负责自己的收尾（取消走 handleCancel、更新走安装重启），
+          不经过统一的关闭流程 */}
+      {() => (
+        <>
+          <DialogTitle
+            title={`发现新版本 v${update.version}`}
+            description={`当前版本 v${update.currentVersion}`}
+            size="small"
+          />
 
-      {downloading && (
-        <div className="w-full flex flex-col gap-2.25">
-          <div className="w-full h-1.5 bg-line-100 rounded-pill overflow-hidden relative">
-            {indeterminate ? (
-              <div
-                className="absolute top-0 w-[40%] h-full bg-brand-500 rounded-pill"
-                style={{
-                  animation: 'update-indeterminate 1s ease-in-out infinite'
-                }}
-              />
-            ) : (
-              <div
-                className="h-full bg-brand-500 rounded-pill"
-                style={{
-                  width: `${percent}%`,
-                  transition: 'width 0.2s ease'
-                }}
-              />
-            )}
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-caption text-ink-500">{message}</span>
-            {eta && (
-              <span className="text-caption text-ink-400 shrink-0">{eta}</span>
-            )}
-          </div>
-        </div>
-      )}
+          {downloading && (
+            <div className="w-full flex flex-col gap-2.25">
+              <div className="w-full h-1.5 bg-line-100 rounded-pill overflow-hidden relative">
+                {indeterminate ? (
+                  <div
+                    className="absolute top-0 w-[40%] h-full bg-brand-500 rounded-pill"
+                    style={{
+                      animation: 'update-indeterminate 1s ease-in-out infinite'
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="h-full bg-brand-500 rounded-pill"
+                    style={{
+                      width: `${percent}%`,
+                      transition: 'width 0.2s ease'
+                    }}
+                  />
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption text-ink-500">{message}</span>
+                {eta && (
+                  <span className="text-caption text-ink-400 shrink-0">
+                    {eta}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
-      {/* 更新说明取自 latest.json 的 notes（Rust 侧映射为 Update.body），
-          由发布流水线按提交记录生成；缺失时整块不渲染，避免留一个空灰块 */}
-      {notes && (
-        <p className="bg-surface-muted p-2.75 rounded-control text-ink-600 text-caption/[1.4545] font-normal whitespace-pre-line max-h-35 overflow-y-auto">
-          {notes}
-        </p>
-      )}
+          {/* 更新说明取自 latest.json 的 notes（Rust 侧映射为 Update.body），
+              由发布流水线按提交记录生成；缺失时整块不渲染，避免留一个空灰块 */}
+          {notes && (
+            <p className="bg-surface-muted p-2.75 rounded-control text-ink-600 text-caption/[1.4545] font-normal whitespace-pre-line max-h-35 overflow-y-auto">
+              {notes}
+            </p>
+          )}
 
-      <div className="h-.25"></div>
+          <div className="h-.25"></div>
 
-      <div className="mt-auto flex justify-end gap-2.5">
-        {btnList.map(({ text, className, onClick }) => (
-          <Button
-            key={text}
-            className={chainClassNames(
-              'px-4 py-2.125 text-card/[1.4615] rounded-control',
-              className
-            )}
-            disabled={loading}
-            onClick={onClick}
-          >
-            {text}
-          </Button>
-        ))}
-      </div>
+          <DialogActions className="mt-auto">
+            {btnList.map(({ text, variant, onClick }) => (
+              <Button
+                key={text}
+                className={chainClassNames(
+                  btnClass(variant),
+                  'hover:opacity-100'
+                )}
+                disabled={loading}
+                onClick={onClick}
+              >
+                {text}
+              </Button>
+            ))}
+          </DialogActions>
 
-      <style>{`
+          <style>{`
         @keyframes update-indeterminate {
           0% { left: -40%; }
           100% { left: 100%; }
         }
       `}</style>
-    </TemplateDialog>
+        </>
+      )}
+    </DialogShell>
   )
 }
 

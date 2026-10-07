@@ -5,9 +5,6 @@ import { invoke } from '@tauri-apps/api/core'
 export const startDiscovery = (config: DiscoveryConfig) =>
   invoke<void>('start_discovery', { config })
 
-/** 停止设备发现（幂等） */
-export const stopDiscovery = () => invoke<void>('stop_discovery')
-
 /** 查询当前已知设备列表（同步，不触发网络请求） */
 export const listDevices = () => invoke<DeviceInfo[]>('list_devices')
 
@@ -17,9 +14,6 @@ export const setDeviceName = (name: string) =>
 
 /** 读取或生成本机 device_id（首次生成后持久化） */
 export const getDeviceId = () => invoke<string>('get_device_id')
-
-/** 注销本机 mDNS 服务（不停 browse，接收端退出时调用） */
-export const unregisterService = () => invoke<void>('unregister_service')
 
 /**
  * 连接指定设备（发送握手）
@@ -42,3 +36,25 @@ export const connectDevice = (deviceId: string) =>
  */
 export const connectByAddr = (addr: string) =>
   invoke<DeviceInfo>('connect_by_addr', { addr })
+
+/**
+ * 提交「是否接受对方连接」的决策
+ *
+ * 收到陌生设备的握手时后端会挂起等待，本命令把用户的选择回传过去。
+ * 点「接受」后该设备会被记入信任表，之后同一台设备再连就静默通过、不再询问。
+ */
+export const respondConnection = (deviceId: string, accepted: boolean) =>
+  invoke<void>('respond_connection', { deviceId, accepted })
+
+/**
+ * 通知对端本机已断开连接
+ *
+ * 传输页「断开连接」用它告诉对方也结束这次会话 —— 对方收到后会回到首页，
+ * 不会停在一个「已连接、但对面早就走了」的假状态里。
+ *
+ * 后端对「通知送不出去」一律静默（对方可能已关机、已断网），
+ * 所以这个调用不会因为对方不在而失败；本机该断还是断。
+ * 手机网页上传端没有这条协议，调用方应跳过。
+ */
+export const notifyDisconnect = (addr: string) =>
+  invoke<void>('notify_disconnect', { addr })

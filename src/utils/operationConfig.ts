@@ -1,12 +1,11 @@
 // src/utils/operationConfig.ts
-import { useStore } from '@/store'
 import { appDataDir, dirname, join, resourceDir } from '@tauri-apps/api/path'
 import { mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
-// ============ 常量定义 ============
-export const CONFIG_DIR = 'config'
-export const BASE_CONFIG_FILE = 'base.conf.json'
-export const APP_CONFIG_FILE = 'app.conf.json'
+// ============ 常量定义（仅本模块使用，不对外暴露） ============
+const CONFIG_DIR = 'config'
+const BASE_CONFIG_FILE = 'base.conf.json'
+const APP_CONFIG_FILE = 'app.conf.json'
 
 // ============ 内部路径工具 ============
 async function getUserConfigPath(): Promise<string> {
@@ -57,46 +56,27 @@ export async function writeConfig(config: Object): Promise<void> {
   await writeTextFile(path, JSON.stringify(config, null, 2))
 }
 
-/**
- * 恢复默认配置（覆盖用户配置）
- */
-export async function resetConfig(): Promise<void> {
-  const defaultPath = await getDefaultConfigPath()
-  const defaultContent = await readTextFile(defaultPath)
-  const userPath = await getUserConfigPath()
-  await writeTextFile(userPath, defaultContent)
-  console.log('重置配置:', defaultContent)
-
-  useStore.setState({ ...JSON.parse(defaultContent) })
-}
-
-// ============ 兼容旧接口（与旧 Hook 无缝衔接） ============
+// ============ 读取 / 写入（useConfig 使用的入口） ============
 
 /**
- * 旧版 get 方法，保持与原有 useConfig Hook 兼容
+ * 读取配置并交给调用方。
+ *
+ * 读失败（首次启动尚无配置文件、或文件被改坏）时交一个空对象而不是抛出：
+ * 配置读不出来不该让应用起不来 —— store 里的默认值本身可用，用户改一下设置
+ * 就会重新写一份出来。
  */
 export async function get(onSuccess: (conf: any) => void): Promise<void> {
   try {
-    const config = await readConfig()
-    // 拷贝逻辑（保留原样，虽然可能多余）
-    const newConfig: any = {}
-    Object.keys(config).forEach(key => {
-      newConfig[key] = config[key]
-    })
-    onSuccess({ ...newConfig })
+    onSuccess(await readConfig())
   } catch (error) {
     console.error('读取配置失败:', error)
-    onSuccess({}) // 或根据业务抛出
+    onSuccess({})
   }
 }
 
-/**
- * 旧版 set 方法，保持兼容
- */
+/** 写入配置（路径固定，调用方不必关心存到哪） */
 export async function set(config: Object): Promise<void> {
-  // 参数 configFilePath 在新架构中忽略，路径固定
   await writeConfig(config)
 }
 
-// 默认导出保持与旧代码一致
 export default { get, set }

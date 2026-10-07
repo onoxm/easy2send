@@ -4,6 +4,8 @@ export type TaskStatus =
   | 'queued' // 排队中
   | 'running' // 传输中
   | 'done' // 完成
+  // 被「断开连接」中断。与 error 分开：这是用户主动的结果，不该显示成失败
+  | 'interrupted'
   | 'error' // 失败
 
 export interface TransferTask {

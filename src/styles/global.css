@@ -55,10 +55,11 @@
  * 就得在这里复刻一遍完整色板（还要跟暗色主题对齐）；而 background-image 天然画在
  * background-color 之上，与任何底色类都能共存。
  *
- * 这三组是普通 CSS 类（不进 @layer）。产物里只有 ono 的样式进了 @layer
- * （ono-components / ono-reset），Uno 工具类是完全不分层的 —— 未分层规则按 CSS 规范
- * 一律压过分层规则，与特异性无关。所以这里既能盖过调用处的 bg-*（(0,2,0) > (0,1,0)），
- * 也能盖过 ono 组件样式。
+ * 这三组是普通 CSS 类（不进 @layer）。⚠️ 反过来的说法**不成立**：「ono 的样式都进了
+ * @layer，所以 Uno 工具类一律压过它」是错的 —— ono-react-element/index.css 只把 reset
+ * 包进 @layer，组件规则全在层外；层外的 Uno 工具类与它相遇时按**特异性**判，多类选择器
+ * （如 .ono-auto-slider-list-container .ono-auto-slider-list-slider，(0,2,0)）会盖过
+ * (0,1,0) 的 bg-*。所以这里能盖过调用处的 bg-* 靠的是 (0,2,0) > (0,1,0)，而不是「分层」。
  * 副作用：不要再给同一元素叠 hover:bg-*，那会与这里的 :hover 打架。 */
 .state-neutral:hover {
   background-color: var(--color-surface-muted);

@@ -4,8 +4,29 @@
 //
 // 所有可见性都由 render(state) 一个函数决定，避免五六处各改一半导致状态错位。
 
-const urlParams = new URLSearchParams(window.location.search)
-const pairToken = urlParams.get('token')
+// 配对 token 从 URL fragment（#token=…）读取，不走 query（?token=…）。
+// fragment 不会被浏览器发往服务器：既不进服务端访问日志，也不会出现在
+// 样式表 / 脚本这类同源请求的 Referer 里（query 形态这两处都会把 token 带出去）。
+// 读出后立刻抹掉 hash：地址栏、浏览器历史、随手截屏里都不再留痕。
+// 抹的是 URL 而不是内存里的 pairToken —— 配对失败后点「重试」照旧能用。
+function readPairToken() {
+  const raw = window.location.hash.slice(1)
+  if (!raw) return null
+  const token = new URLSearchParams(raw).get('token')
+  if (!token) return null
+  try {
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search
+    )
+  } catch (e) {
+    // 极少数 WebView 会禁用 replaceState：读到 token 更要紧，放弃抹除即可
+  }
+  return token
+}
+
+const pairToken = readPairToken()
 
 const els = {
   tagline: document.getElementById('tagline'),

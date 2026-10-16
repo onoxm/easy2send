@@ -1,36 +1,35 @@
 import { chainClassNames, OnoSelect } from 'ono-react-element'
 
-interface SelectProps {
-  selectClassName?: string
-  optionsClassName?: string
-  defaultValue?: string | number
+interface SelectProps<T> {
+  className?: string
+  defaultValue?: NoInfer<T>
   notFoundContent?: string
-  options: { label: string; value: string | number }[]
+  options: { label: string; value: T }[]
+  showOptionEntries?: number
   filterOption?: boolean
   fontFamily?: (value: string) => string | undefined
-  onChange?: (value: string | number) => void
+  onChange?: (value: T) => void
 }
 
-export const Select = ({
-  selectClassName,
-  optionsClassName,
+export const Select = <T = string,>({
+  className,
   defaultValue,
   notFoundContent,
   options,
+  showOptionEntries,
   fontFamily,
   filterOption,
   onChange
-}: SelectProps) => {
+}: SelectProps<T>) => {
   return (
     <OnoSelect
-      selectClassName={chainClassNames(
-        'input py-[7.5px] pl-[11px] pr-[9px] border border-line-200 bg-surface-base text-ink-900 text-card/[1.4615]',
-        selectClassName
-      )}
-      optionsClassName={chainClassNames(
-        'py-1 border border-line-200 bg-surface-base gap-1 flex flex-col',
-        optionsClassName
-      )}
+      classNames={{
+        select: chainClassNames(
+          'input py-[7.5px] pl-[11px] pr-[9px] border border-line-200 bg-surface-base text-ink-900 text-card/[1.4615]',
+          className
+        ),
+        panel: 'border border-line-200 bg-surface-base gap-1 flex flex-col'
+      }}
       defaultValue={defaultValue}
       filterOption={filterOption}
       isShowArrow={false}
@@ -43,12 +42,14 @@ export const Select = ({
       }
       options={options}
       onChange={onChange}
+      showOptionEntries={showOptionEntries}
     >
-      {(option, selected) => (
+      {(option, selected, isCursor) => (
         <span
           className={chainClassNames(
-            'py-1.5 px-2.5 text-ink-900 text-card/4.75 hover:bg-line-100 block rounded-sm',
-            selected ? 'bg-brand-50 text-brand-600' : ''
+            'py-1.5 px-2.5 text-ink-900 text-card/4.75 block rounded-sm',
+            selected ? 'bg-brand-50 text-brand-600' : '',
+            isCursor && !selected ? 'bg-line-100' : ''
           )}
           style={{
             fontFamily: fontFamily?.(option.value + '')

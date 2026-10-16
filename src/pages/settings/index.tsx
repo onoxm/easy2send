@@ -5,17 +5,16 @@ import { listTrustedDevices, revokeTrustedDevice } from '@/api/trust'
 import {
   BackButton,
   innerToast,
-  // Logo,
+  Logo,
   PeerIdentity,
   Select,
   Tip
 } from '@/components'
-import { useStore } from '@/store'
+import { useStore, type CloseAction } from '@/store'
 import type { TrustedDevice } from '@/types/trust'
-// import { IconBrandGithub, IconEdit, IconFolder } from '@tabler/icons-react'
-import { IconEdit, IconFolder } from '@tabler/icons-react'
+import { IconBrandGithub, IconEdit, IconFolder } from '@tabler/icons-react'
 import { open } from '@tauri-apps/plugin-dialog'
-// import { openUrl } from '@tauri-apps/plugin-opener'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { check } from '@tauri-apps/plugin-updater'
 import { Button, formatTime, Switch } from 'ono-react-element'
 import { useEffect, useState } from 'react'
@@ -27,23 +26,27 @@ export default () => {
   const {
     savePath,
     autoCheckUpdate,
+    notifyOnComplete,
     canUpdate,
     deviceName,
     concurrentUploads,
     version,
     theme,
     fontFamily,
-    fontScale
+    fontScale,
+    closeAction
   } = useStore([
     'savePath',
     'canUpdate',
     'autoCheckUpdate',
+    'notifyOnComplete',
     'deviceName',
     'concurrentUploads',
     'version',
     'theme',
     'fontFamily',
-    'fontScale'
+    'fontScale',
+    'closeAction'
   ])
   const [downloading, setLoading] = useState(false)
   // 已信任设备只在设置页用，所以随进随查、不放进全局 store ——
@@ -135,17 +138,17 @@ export default () => {
     }
   }
 
-  // // 外链一律交给系统默认浏览器：Tauri 的 webview 会拦截 `<a href>` 发起的**外部导航**
-  // // （点了不会离开应用，也不会报错），所以必须显式调 opener。所需权限
-  // // `opener:default` 已在 capabilities/default.json 里，且已含 allow-default-urls
-  // // ⇒ https 在白名单内，不需要额外加 scope。
-  // const handleOpenRepo = async () => {
-  //   try {
-  //     await openUrl('https://github.com/onoxm/easy2send')
-  //   } catch (e) {
-  //     innerToast.error(`打开仓库地址失败: ${e}`)
-  //   }
-  // }
+  // 外链一律交给系统默认浏览器：Tauri 的 webview 会拦截 `<a href>` 发起的**外部导航**
+  // （点了不会离开应用，也不会报错），所以必须显式调 opener。所需权限
+  // `opener:default` 已在 capabilities/default.json 里，且已含 allow-default-urls
+  // ⇒ https 在白名单内，不需要额外加 scope。
+  const handleOpenRepo = async () => {
+    try {
+      await openUrl('https://github.com/onoxm/easy2send')
+    } catch (e) {
+      innerToast.error(`打开仓库地址失败: ${e}`)
+    }
+  }
 
   const concurrentOptions = [1, 2, 3, 4, 5]
   const settingsBarList = [
@@ -183,7 +186,7 @@ export default () => {
           {/* OnoSelect 自带 .ono-select{width:100%}，宽度不受外层控制；设计稿里
               下拉框是固定 82 宽（3:387），这里加一层定宽容器把它钉住。 */}
           <Select
-            selectClassName="w-45"
+            className="w-45"
             defaultValue={concurrentUploads}
             options={concurrentOptions.map(n => ({
               label: n + '',
@@ -254,7 +257,7 @@ export default () => {
       title: '字号缩放',
       children: (
         <div className="flex items-center gap-2.5">
-          <div className="w-[82px] shrink-0">
+          <div className="w-25 shrink-0">
             <Select
               defaultValue={fontScale}
               /* 只给到 90–130%：行高是按设计稿写死的像素值（正文 12px 对 17px 行高），
@@ -316,6 +319,56 @@ export default () => {
       )
     },
     {
+      title: '关闭窗口时',
+      children: (
+        <div className="flex items-center gap-2.5">
+          {/* OnoSelect 自带 .ono-select{width:100%}，宽度不受外层控制；与「并发传输数」
+              一样加一层定宽容器钉住 */}
+          <div className="w-45 shrink-0">
+            <Select
+              defaultValue={closeAction}
+              options={
+                [
+                  { label: '每次询问', value: 'ask' },
+                  { label: '最小化到托盘', value: 'tray' },
+                  { label: '退出软件', value: 'quit' }
+                ] as { label: string; value: CloseAction }[]
+              }
+              onChange={v => useStore.setState({ closeAction: v })}
+            />
+          </div>
+          <p className="text-body/[1.4167] text-ink-500 font-normal shrink-0">
+            点窗口关闭按钮时怎么做
+          </p>
+        </div>
+      ),
+      help: (
+        <p className="text-ink-600 text-caption/[1.4545] font-normal">
+          只作用于窗口关闭按钮 ——
+          托盘菜单里的「退出」是明确的退出意图，不受这里影响。「最小化到托盘」不会断开连接，
+          程序留在后台继续接收文件。关窗弹窗里勾了「记住我的选择」写的就是这一项，
+          想改回来也是在这里。
+        </p>
+      )
+    },
+    {
+      /* 设计稿「04 设置窗口」的「传输完成通知」（浅色 131:13 / 暗色 131:32）——
+         位置与「自动更新」一样挂在列表**末尾**，不插到它前面。
+         没有 help：设计稿只画了「标签行 + 控件行」，没画 ⓘ；ⓘ 是 help 的附属
+         触发源，多加一枚等于把当初裁定删掉的冗余又加回来。 */
+      title: '传输完成通知',
+      children: (
+        <Switch
+          style={{ width: 36, height: 20 }}
+          id="notifyOnComplete"
+          color={theme === 'light' ? '#14a34a' : '#35c077'}
+          checked={notifyOnComplete}
+          aria-label="传输完成通知"
+          onChange={bl => useStore.setState({ notifyOnComplete: bl })}
+        />
+      )
+    },
+    {
       title: '自动更新',
       children: (
         <>
@@ -357,46 +410,46 @@ export default () => {
           开启后自动检查新版本；右侧按钮在有可用更新时出现
         </p>
       )
+    },
+    {
+      title: '关于',
+      children: (
+        <>
+          <Logo size={28} className="shrink-0" />
+          <div className="flex flex-col gap-.75 min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-card/[1.4615] font-medium text-ink-900">
+                Easy2Send
+              </span>
+              <span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500">
+                v{version}
+              </span>
+            </div>
+            <p className="text-caption/[1.4545] font-normal text-ink-400 truncate">
+              局域网内免配置互传文件，不用账号、不走云端
+            </p>
+          </div>
+          {/* 协议做成纯展示徽标：想知道全文的人点右侧仓库链接即可 —— 这里再挂一个
+              独立出口，将来换协议或改年份就多一处要同步，而它本来不会有人点。 */}
+          {/*<span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500 shrink-0">
+            MIT
+          </span>*/}
+          {/* 借用设置页「返回」按钮的次要按钮规格（描边 + surface.base + 10 圆角 +
+              state-neutral），不再为它单开一套观感 */}
+          <button
+            className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-control shrink-0 state-neutral"
+            onClick={handleOpenRepo}
+          >
+            <span className="text-ink-600">
+              <IconBrandGithub size={14} stroke={2} />
+            </span>
+            <span className="text-ink-700 text-body/[1.4167] font-medium">
+              GitHub 仓库
+            </span>
+          </button>
+        </>
+      )
     }
-    // {
-    //   title: '关于',
-    //   children: (
-    //     <>
-    //       <Logo size={28} className="shrink-0" />
-    //       <div className="flex flex-col gap-.75 min-w-0 flex-1">
-    //         <div className="flex items-center gap-1.5">
-    //           <span className="text-card/[1.4615] font-medium text-ink-900">
-    //             Easy2Send
-    //           </span>
-    //           <span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500">
-    //             v{version}
-    //           </span>
-    //         </div>
-    //         <p className="text-caption/[1.4545] font-normal text-ink-400 truncate">
-    //           局域网内免配置互传文件，不用账号、不走云端
-    //         </p>
-    //       </div>
-    //       {/* 协议做成纯展示徽标：想知道全文的人点右侧仓库链接即可 —— 这里再挂一个
-    //           独立出口，将来换协议或改年份就多一处要同步，而它本来不会有人点。 */}
-    //       <span className="py-[1px] px-2.25 border border-line-200 bg-surface-base rounded-pill text-caption/[1.4545] text-ink-500 shrink-0">
-    //         MIT
-    //       </span>
-    //       {/* 借用设置页「返回」按钮的次要按钮规格（描边 + surface.base + 10 圆角 +
-    //           state-neutral），不再为它单开一套观感 */}
-    //       <button
-    //         className="flex items-center gap-1.5 px-2.5 py-[7.5px] border border-line-200 bg-surface-base rounded-control shrink-0 state-neutral"
-    //         onClick={handleOpenRepo}
-    //       >
-    //         <span className="text-ink-600">
-    //           <IconBrandGithub size={14} stroke={2} />
-    //         </span>
-    //         <span className="text-ink-700 text-body/[1.4167] font-medium">
-    //           GitHub 仓库
-    //         </span>
-    //       </button>
-    //     </>
-    //   )
-    // }
   ]
 
   return (

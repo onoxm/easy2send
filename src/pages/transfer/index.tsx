@@ -70,7 +70,6 @@ export default () => {
 
   const [tasks, setTasks] = useState<Record<string, TransferTask>>({})
 
-  // ---------------- 工具：更新/插入任务 ----------------
   const upsertTask = (id: string, patch: Partial<TransferTask>) => {
     setTasks(prev => {
       const old = prev[id]
@@ -102,7 +101,6 @@ export default () => {
     })
   }
 
-  // ---------------- 并发发送调度 ----------------
   // 每次选到新文件：先 createTransferTasks 拿到 seeds，全部插到 tasks[status=queued]
   // 再用 ref 里的"当前 running 计数器 + 并发上限"轮询调度 startTransferTask
   const seedsQueueRef = useRef<TransferTaskSeed[]>([])
@@ -166,7 +164,6 @@ export default () => {
     flushSchedule()
   }
 
-  // ---------------- UI 事件：点击选文件 / 拖拽 ----------------
   const handlerPickFiles = async () => {
     const picked = await open({
       multiple: true,
@@ -188,9 +185,22 @@ export default () => {
     [activeTab, addr]
   )
 
-  // ---------------- 监听 v2 事件（按 task_id 分条更新） ----------------
   useEffect(() => {
     let unmounted = false
+
+    /**
+     * 传输完成的提醒：受设置页「传输完成通知」开关控制，关掉时通知与提示音一起静默。
+     *
+     * 判定点只此一处（发送、接收两个完成分支共用）。读的是 store 的**即时快照**
+     * 而不是渲染期捕获的值 —— 开关一改就立刻生效，因此它不必进 effect 的依赖数组。
+     *
+     * 写成 `=== false` 而不是取反：默认是「开」，只有用户明确关掉才静默。持久化里
+     * 万一漏进 null / 别的脏值（见 memory/store-persist.md），也不会把提醒悄悄关掉。
+     */
+    const notifyTransferDone = (title: string) => {
+      if (useStore.getState().notifyOnComplete === false) return
+      sendNotification(title)
+    }
 
     /** send / receive 的 progress 事件字段完全一致，只有方向不同 —— 合成一条 */
     const applyProgress = (
@@ -229,7 +239,7 @@ export default () => {
         runningCountRef.current === 0 &&
         seedsQueueRef.current.length === 0
       ) {
-        sendNotification('发送完成')
+        notifyTransferDone('发送完成')
       }
     }
     const handleSendComplete = (ev: Event<Record<string, unknown>>) => {
@@ -317,7 +327,7 @@ export default () => {
           recvCompleteTimerRef.current = null
           if (unmounted) return
           if (recvRunningRef.current === 0) {
-            sendNotification('接收完成')
+            notifyTransferDone('接收完成')
           }
         }, 200)
       }
@@ -348,7 +358,20 @@ export default () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sendNotification])
 
-  // ---------------- 路由守卫 ----------------
+  // 退出确认要用它：退出请求落在 __root__（窗口关闭与托盘「退出」都汇聚到那里），
+  // 而任务列表只活在本页的局部 state 里，根布局看不到，只能经 store 递出去。
+  useEffect(() => {
+    useStore.setState({
+      activeTaskCount: Object.values(tasks).filter(
+        t => t.status === 'running' || t.status === 'queued'
+      ).length
+    })
+  }, [tasks])
+
+  // 离开本页时归零。之后如果后端还有发送任务在跑（点「返回」不会中断它们），
+  // 由后端在退出时把 runningTasks 一并报出来兜底，见 __root__.tsx 里的取大者。
+  useEffect(() => () => void useStore.setState({ activeTaskCount: 0 }), [])
+
   useEffect(() => {
     if (!connectedDevice) navigate('/')
   }, [connectedDevice, navigate])
@@ -366,7 +389,43 @@ export default () => {
     navigate('/')
   }
 
-  const handleBack = () => teardown()
+  // 进行中（含排队）的任务。「返回」与「断开连接」要不要拦一道、警示说的是哪
+  // 一种代价，都看它 —— 没有未完成的任务就直接走，不拿一句废话拦人。
+  const pendingTasks = Object.values(tasks).filter(
+    t => t.status === 'running' || t.status === 'queued'
+  )
+
+  // 手机网页上传：文件是经本机那个 HTTP 服务器收的，而它随本页卸载被停掉
+  // （见上面的 stopWebUpload）⇒ 这一路「返回」是真中断，代价与「断开连接」相同。
+  const isWebUpload = connectedDevice?.deviceId === 'web-upload'
+
+  /**
+   * 返回：只是离开本页，不结束会话。
+   *
+   * 传输任务活在本机主进程里，返回**不会**打断它们（后端在退出时还会把
+   * runningTasks 报出来兜底，见 __root__.tsx 的取大者）。代价是这一页卸载后
+   * 进度就再也看不到了 —— 所以传输中途返回要拦一道把它说清楚，
+   * 别让用户以为任务已经停了。手机上传那条路例外，见 isWebUpload。
+   */
+  const handleBack = () => {
+    if (pendingTasks.length === 0) {
+      teardown()
+      return
+    }
+    confirmDialog({
+      title: '返回首页',
+      description: isWebUpload
+        ? undefined
+        : '任务会继续在后台传输，本次会话与对端的连接都不会结束。',
+      warn: isWebUpload
+        ? `还有 ${pendingTasks.length} 个任务未完成，返回后接收会被中断`
+        : `还有 ${pendingTasks.length} 个任务未完成，返回后本页将不再显示进度`,
+      confirmText: '返回',
+      // 手机上传是真中断（有代价）才给危险配方；普通「返回」什么都没丢
+      danger: isWebUpload,
+      onConfirm: teardown
+    })
+  }
 
   /** 把任务标成「已中断」。走 upsertTask 是为了让结束时刻等字段由它统一补齐 */
   const markInterrupted = (ids: string[]) => {
@@ -403,19 +462,17 @@ export default () => {
   const handleDisconnect = () => {
     // 进行中的任务是「断开」与「返回」的全部区别 —— 有它们才值得问一句。
     // 接收方向也算：对方会因这条断开通知而停发，我这边的接收同样会断
-    const pending = Object.values(tasks).filter(
-      t => t.status === 'running' || t.status === 'queued'
-    )
-    if (pending.length === 0) {
+    if (pendingTasks.length === 0) {
       disconnectNow([])
       return
     }
     confirmDialog({
       title: '断开连接',
-      description: `还有 ${pending.length} 个任务未完成，断开后会被中断`,
+      description: '本次会话立即结束，对方也会跟着回到首页。',
+      warn: `还有 ${pendingTasks.length} 个任务未完成，断开后会被中断`,
       confirmText: '断开',
       danger: true,
-      onConfirm: () => disconnectNow(pending)
+      onConfirm: () => disconnectNow(pendingTasks)
     })
   }
 

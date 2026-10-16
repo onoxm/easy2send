@@ -173,8 +173,6 @@ body {
   display: none !important;
 }
 
-/* ---------- 页面骨架：整块内容在视口内垂直居中 ---------- */
-
 .page {
   position: relative; /* 主题切换按钮以它为定位基准 */
   min-height: 100vh;
@@ -196,8 +194,6 @@ body {
   align-items: center;
   gap: 28px;
 }
-
-/* ---------- 品牌区 ---------- */
 
 .brand {
   display: flex;
@@ -235,8 +231,6 @@ body {
   font-weight: 400;
   color: var(--ink-500);
 }
-
-/* ---------- 状态卡片（配对中 / 已连接 / 配对失败） ---------- */
 
 .state-card {
   width: 100%;
@@ -334,8 +328,6 @@ body {
   }
 }
 
-/* ---------- 完成卡片 ---------- */
-
 .done-card {
   width: 100%;
   display: flex;
@@ -377,8 +369,6 @@ body {
   font-weight: 400;
   color: var(--ink-600);
 }
-
-/* ---------- 文件列表 ---------- */
 
 .file-list {
   width: 100%;
@@ -496,8 +486,6 @@ body {
   color: var(--danger-600);
 }
 
-/* ---------- 按钮 ---------- */
-
 .btn {
   width: 100%;
   display: flex;
@@ -542,8 +530,6 @@ body {
   background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
 }
 
-/* ---------- 上传区 ---------- */
-
 .upload-area {
   width: 100%;
   display: flex;
@@ -558,8 +544,6 @@ body {
   color: var(--ink-400);
   text-align: center;
 }
-
-/* ---------- 底部信息 ---------- */
 
 .meta {
   display: flex;
@@ -579,8 +563,6 @@ body {
 .meta-line-dim {
   color: var(--ink-300);
 }
-
-/* ---------- 主题切换 ---------- */
 
 /* 浮在右上角，不参与 .stack 的布局 —— 这样设计稿的垂直居中账一分不动。
  * right 与页面 padding 对齐，正好压在内容右边界上（375 屏上即 24）。 */

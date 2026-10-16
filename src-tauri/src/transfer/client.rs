@@ -231,8 +231,6 @@ pub async fn send_handshake(
     })
 }
 
-// ---------- 内部辅助 ----------
-
 async fn write_file_payload_v2(
     stream: &mut BufWriter<ClientTlsStream>,
     path: &Path,

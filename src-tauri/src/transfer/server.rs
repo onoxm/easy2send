@@ -5,6 +5,7 @@ use super::protocol::{
     MODE_FILE_TASK_AUTH, MODE_FOLDER, MODE_FOLDER_TASK, MODE_FOLDER_TASK_AUTH, MODE_HANDSHAKE,
     MODE_PING, REPLY_ACCEPTED, REPLY_REJECTED,
 };
+use super::SharedPeers;
 use crate::discovery::state::current_unix_ms;
 use crate::discovery::SharedDiscoveryState;
 use crate::tls::{self, DeviceIdentity, ServerTlsStream};
@@ -28,6 +29,7 @@ pub(super) async fn run_server(
     state: SharedDiscoveryState,
     trust: SharedTrustState,
     identity: Arc<DeviceIdentity>,
+    peers: SharedPeers,
 ) -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     let tls_config = identity.server_config()?;
@@ -44,6 +46,7 @@ pub(super) async fn run_server(
                 let save_dir_clone = save_dir.clone();
                 let state_clone = state.clone();
                 let trust_clone = trust.clone();
+                let peers_clone = peers.clone();
                 let config = tls_config.clone();
                 tokio::spawn(async move {
                     // TLS 握手放进 spawn 里做：一条慢速或半开的连接不能把整个 accept
@@ -69,6 +72,7 @@ pub(super) async fn run_server(
                         save_dir_clone,
                         &state_clone,
                         &trust_clone,
+                        &peers_clone,
                     )
                     .await
                     {
@@ -104,6 +108,7 @@ async fn handle_client(
     save_dir: PathBuf,
     state: &SharedDiscoveryState,
     trust: &SharedTrustState,
+    peers: &SharedPeers,
 ) -> Result<()> {
     let mut mode_buf = [0u8; 1];
     match stream.read_exact(&mut mode_buf).await {
@@ -118,10 +123,10 @@ async fn handle_client(
             receive_authorized(stream, peer_fp, &app, &save_dir, trust, mode).await?;
         }
         MODE_HANDSHAKE => {
-            receive_handshake(stream, peer, peer_fp, &app, trust).await?;
+            receive_handshake(stream, peer, peer_fp, &app, trust, peers).await?;
         }
         MODE_DISCONNECT => {
-            receive_disconnect(stream, &app).await?;
+            receive_disconnect(stream, peer, &app, peers).await?;
         }
         MODE_PING => {
             // 心跳查询：回复本机 deviceName（4 字节长度 + UTF-8 字符串）
@@ -163,10 +168,27 @@ async fn handle_client(
 /// 不回包、也不校验信任表。理由：能走到这里的连接已经通过了 TLS 双向认证，
 /// 也就是对方出示了本机曾接受过的客户端证书；而拒绝一条「我要走了」的通知，
 /// 只会让本机停在一个假的「已连接」状态里 —— 对方已经回首页了，本机还显示连着。
-async fn receive_disconnect(stream: &mut ServerTlsStream, app: &AppHandle) -> Result<()> {
+async fn receive_disconnect(
+    stream: &mut ServerTlsStream,
+    peer: SocketAddr,
+    app: &AppHandle,
+    peers: &SharedPeers,
+) -> Result<()> {
     let device_id = read_string(stream).await?;
     // 昵称只用于提示文案：读不到就当空串，不让一条文案把断开流程搞挂
     let device_name = read_string(stream).await.unwrap_or_default();
+
+    // 把这一台从活跃对端表里摘掉，免得退出应用时再给它补一条重复的断开通知。
+    //
+    // 只能用 IP 前缀匹配：它当初是按**握手**的地址（ip:它自述的监听端口）登记
+    // 进来的，而这条通知走的是它新建的临时出站连接，两端端口必然不同，
+    // 唯一靠得住的重合点就是 IP。带上冒号可以避免 192.168.1.1 误伤 192.168.1.10。
+    {
+        let prefix = format!("{}:", peer.ip());
+        let mut p = peers.lock().await;
+        p.retain(|addr, _| !addr.starts_with(&prefix));
+    }
+
     let _ = app.emit(
         "peer-disconnected",
         serde_json::json!({
@@ -265,6 +287,7 @@ async fn receive_handshake(
     peer_fp: &str,
     app: &AppHandle,
     trust: &SharedTrustState,
+    peers: &SharedPeers,
 ) -> Result<()> {
     let device_id = read_string(stream).await?;
     let device_name = read_string(stream).await?;
@@ -339,6 +362,18 @@ async fn receive_handshake(
             }
         }
     };
+
+    // 只有接受了才登记：被拒绝的设备与我们是不会话的，退出时没有理由去通知它。
+    //
+    // 地址用 `peer.ip() + 它自述的 server_port`：这条握手连接本身是对方的**临时
+    // 出站**连接（源端口随机），拿它当对端地址根本连不回去；对方真正在监听的是
+    // 协议里那个 server_port。
+    if accepted {
+        peers
+            .lock()
+            .await
+            .insert(format!("{}:{}", peer.ip(), server_port), device_name.clone());
+    }
 
     let reply = if accepted {
         REPLY_ACCEPTED

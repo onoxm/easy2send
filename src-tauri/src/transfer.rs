@@ -8,7 +8,7 @@ pub(crate) mod protocol;
 mod server;
 
 use self::protocol::HANDSHAKE_CONFIRM_TIMEOUT_SECS;
-use crate::discovery::{unregister_service, DeviceInfo, SharedDiscoveryState};
+use crate::discovery::{DeviceInfo, SharedDiscoveryState};
 use crate::tls::DeviceIdentity;
 use crate::trust::SharedTrustState;
 use std::collections::HashMap;
@@ -57,8 +57,6 @@ async fn expected_fingerprint_for_addr(
     t.pinned_fingerprint_of(&device_id)
 }
 
-// ---------- 任务取消注册表 ----------
-
 /// 单个发送任务的中断标记（true = 已被要求停止）
 pub type CancelFlag = Arc<AtomicBool>;
 
@@ -74,7 +72,104 @@ pub fn new_task_registry() -> SharedTaskRegistry {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-// ---------- 服务器状态管理 ----------
+/// 全部置位：让此刻所有进行中的发送任务都停下来。
+///
+/// 与 `cancel_transfer_tasks` 的区别是它不需要 task_id —— 退出流程要清空的是
+/// 「此刻在跑的全部任务」，而不是用户点名的某几个。
+pub async fn cancel_all_tasks(registry: &SharedTaskRegistry) {
+    let reg = registry.lock().await;
+    for flag in reg.values() {
+        flag.store(true, Ordering::Relaxed);
+    }
+}
+
+/// 与哪些对端建立过会话：addr(`ip:port`) → 对端昵称
+///
+/// 值（昵称）只用于日志，让人一眼看出「刚才通知的是哪台机器」。
+///
+/// 用途只有一个：**退出应用时逐个通知「我走了」**。
+///
+/// 为什么记的是「会话」而不是「连接」：传输链路是短连接，每条任务各自建 TCP
+/// 连接、传完即断，根本没有一条贯穿始终的连接可关。真正持续存在的只有
+/// 「用户从进传输页到点断开」这段会话 —— 期间对端一直以为本机在线、随时可以发。
+///
+/// 为什么不交给前端传 addr：用户点「返回」后前端会把 connectedDevice 清空，
+/// 但那时可能还有发送任务在跑、对端还在收。这份状态只有后端看得全。
+pub type SharedPeers = Arc<Mutex<HashMap<String, String>>>;
+
+/// 建一张空的对端登记表（在 lib.rs 的 setup 里 manage 进应用状态）
+pub fn new_peer_registry() -> SharedPeers {
+    Arc::new(Mutex::new(HashMap::new()))
+}
+
+/// 逐个通知活跃对端本机已断开，供退出流程调用。
+///
+/// **整段有总超时**（见 `PEER_NOTIFY_TIMEOUT_SECS`）：对端可能已经关机或断网，
+/// 而 `tls::connect` 内部单是建连就要 3 秒，串行等完几个对端足够让「关闭软件」
+/// 变成一次明显的卡顿。通知本来就是尽力而为 —— 对方没收到，最多晚几十秒由它
+/// 自己的心跳把本机标成离线，比让用户盯着一个关不掉的窗口强。
+pub async fn disconnect_all_peers(
+    app: &AppHandle,
+    peers: &SharedPeers,
+    discovery: &SharedDiscoveryState,
+    trust: &SharedTrustState,
+    identity: &Arc<DeviceIdentity>,
+) {
+    let targets: Vec<(String, String)> = {
+        let p = peers.lock().await;
+        p.iter()
+            .map(|(addr, name)| (addr.clone(), name.clone()))
+            .collect()
+    };
+    if targets.is_empty() {
+        return;
+    }
+
+    // 本机身份取不到就直接放弃通知：没有 device_id 的消息对端无法判断来自谁，
+    // 发过去也只是让它多收一条解析不了的垃圾
+    let device_id = match self_device_id(discovery, app).await {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("[exit] 取本机 device_id 失败，跳过断开通知: {}", e);
+            return;
+        }
+    };
+    let device_name = {
+        let s = discovery.lock().await;
+        s.last_config
+            .as_ref()
+            .map(|c| c.device_name.clone())
+            .unwrap_or_default()
+    };
+
+    let mut handles = Vec::with_capacity(targets.len());
+    for (addr, name) in targets {
+        println!("[exit] 通知对端 {} ({}) 本机已断开", name, addr);
+        // 指纹按 IP 反查，和传输页「断开连接」走的是同一条路径
+        let expected = expected_fingerprint_for_addr(&addr, discovery, trust).await;
+        let identity = identity.clone();
+        let device_id = device_id.clone();
+        let device_name = device_name.clone();
+        handles.push(tauri::async_runtime::spawn(async move {
+            // 单个失败不影响其它对端：能通知几个是几个
+            let _ = client::send_disconnect(&addr, &identity, &device_id, &device_name, expected)
+                .await;
+        }));
+    }
+
+    // 并发发出、整体限时。超时后不等了 —— 这里只是尽力通知，
+    // 拖住退出流程反而与「用户想关掉软件」的意图相反。
+    let _ = tokio::time::timeout(Duration::from_secs(PEER_NOTIFY_TIMEOUT_SECS), async {
+        for h in handles {
+            let _ = h.await;
+        }
+    })
+    .await;
+}
+
+/// 退出时通知对端的整体时限（秒）
+const PEER_NOTIFY_TIMEOUT_SECS: u64 = 2;
+
 pub struct ServerState {
     pub cancel_sender: Option<oneshot::Sender<()>>,
     pub task_handle: Option<tauri::async_runtime::JoinHandle<()>>,
@@ -98,7 +193,6 @@ impl Default for ServerState {
     }
 }
 
-// ---------- Tauri 命令 ----------
 /// 启动接收服务器，**返回实际监听的端口**。
 ///
 /// 幂等：若服务器已在运行，直接返回它当前监听的端口，而不是报错。
@@ -116,6 +210,7 @@ pub async fn start_server(
     discovery_state: tauri::State<'_, SharedDiscoveryState>,
     trust_state: tauri::State<'_, SharedTrustState>,
     identity: tauri::State<'_, Arc<DeviceIdentity>>,
+    peers: tauri::State<'_, SharedPeers>,
 ) -> Result<u16, String> {
     let save_path = PathBuf::from(&save_dir);
 
@@ -148,6 +243,7 @@ pub async fn start_server(
     let discovery_state = discovery_state.inner().clone();
     let trust = trust_state.inner().clone();
     let identity = identity.inner().clone();
+    let peers = peers.inner().clone();
     let handle = tauri::async_runtime::spawn(async move {
         if let Err(e) = server::run_server(
             &addr,
@@ -157,6 +253,7 @@ pub async fn start_server(
             discovery_state,
             trust,
             identity,
+            peers,
         )
         .await
         {
@@ -178,6 +275,17 @@ pub async fn stop_server(
     state: tauri::State<'_, Arc<Mutex<ServerState>>>,
     discovery_state: tauri::State<'_, SharedDiscoveryState>,
 ) -> Result<(), String> {
+    stop_server_inner(state.inner(), discovery_state.inner()).await
+}
+
+/// `stop_server` 的内核。
+///
+/// 接收引用而不是 `tauri::State`：退出流程不在命令上下文里（它跑在 `RunEvent`
+/// 回调的异步任务中），拿不到 `State`，但收尾要做的事一模一样。
+pub async fn stop_server_inner(
+    state: &Arc<Mutex<ServerState>>,
+    discovery_state: &SharedDiscoveryState,
+) -> Result<(), String> {
     {
         let mut s = state.lock().await;
         if let Some(sender) = s.cancel_sender.take() {
@@ -197,7 +305,7 @@ pub async fn stop_server(
     // —— browse 由根布局常驻，与「是否在接收」无关。
     //
     // 注销失败不阻断停止流程：server 已经停了，这里只是让对端早一点知道。
-    let _ = unregister_service(discovery_state).await;
+    let _ = crate::discovery::unregister_service_inner(discovery_state).await;
     Ok(())
 }
 
@@ -334,6 +442,7 @@ pub async fn notify_disconnect(
     discovery_state: tauri::State<'_, SharedDiscoveryState>,
     trust_state: tauri::State<'_, SharedTrustState>,
     identity: tauri::State<'_, Arc<DeviceIdentity>>,
+    peers: tauri::State<'_, SharedPeers>,
 ) -> Result<(), String> {
     let device_id = self_device_id(discovery_state.inner(), &app).await?;
     let expected =
@@ -353,6 +462,9 @@ pub async fn notify_disconnect(
     {
         eprintln!("[transfer] 断开通知未能送达 {}（不影响本机断开）: {}", addr, e);
     }
+    // 无论通知有没有送达都从活跃表里摘掉：用户已经明确结束了这次会话，
+    // 之后退出应用时不必再为它补一条重复的通知。
+    peers.lock().await.remove(&addr);
     Ok(())
 }
 
@@ -372,6 +484,7 @@ pub async fn connect_device(
     state: tauri::State<'_, SharedDiscoveryState>,
     trust_state: tauri::State<'_, SharedTrustState>,
     identity: tauri::State<'_, Arc<DeviceIdentity>>,
+    peers: tauri::State<'_, SharedPeers>,
 ) -> Result<DeviceInfo, String> {
     let identity = identity.inner().clone();
 
@@ -440,6 +553,12 @@ pub async fn connect_device(
         {
             Ok(Ok(outcome)) if outcome.accepted => {
                 println!("[connect] 握手成功 {}", addr);
+                // 登记进活跃对端表：退出应用时要靠它知道该通知谁。
+                // 记的是这次握手**实际成功**的那个地址（多网卡下未必是首选 IP）。
+                peers
+                    .lock()
+                    .await
+                    .insert(addr.clone(), info.device_name.clone());
                 // 记住对端的证书指纹，后续传输连接据此固定它（防中间人）
                 if let Some(fp) = outcome.peer_fingerprint {
                     let mut t = trust_state.lock().await;
@@ -495,6 +614,7 @@ pub async fn connect_by_addr(
     addr: String,
     state: tauri::State<'_, SharedDiscoveryState>,
     identity: tauri::State<'_, Arc<DeviceIdentity>>,
+    peers: tauri::State<'_, SharedPeers>,
 ) -> Result<DeviceInfo, String> {
     let identity = identity.inner().clone();
 
@@ -564,7 +684,8 @@ pub async fn connect_by_addr(
         _ => format!("未知设备({})", peer_ip),
     };
 
-    // 4. 构造 DeviceInfo 返回
+    // 4. 登记进活跃对端表（退出时按 addr 逐个通知），再构造 DeviceInfo 返回
+    peers.lock().await.insert(addr.clone(), peer_name.clone());
     Ok(DeviceInfo {
         device_id: String::new(),
         device_name: peer_name,

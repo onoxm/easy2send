@@ -28,8 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-// ---------- 对外数据结构 ----------
-
 /// 发现模块对外暴露的设备信息（emit 给前端 / 命令返回）
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,8 +65,6 @@ pub struct DiscoveryConfig {
     /// app 版本号
     pub version: String,
 }
-
-// ---------- 内部工具 ----------
 
 /// 构造并注册本机服务（同步函数，可在锁内调用）
 ///
@@ -108,8 +104,6 @@ fn register_with_daemon(
     println!("[mdns] 服务注册成功");
     Ok(Some(fullname))
 }
-
-// ---------- Tauri 命令 ----------
 
 /// 启动设备发现
 ///
@@ -233,6 +227,14 @@ pub async fn stop_discovery(state: tauri::State<'_, SharedDiscoveryState>) -> Re
 pub async fn unregister_service(
     state: tauri::State<'_, SharedDiscoveryState>,
 ) -> Result<(), String> {
+    unregister_service_inner(state.inner()).await
+}
+
+/// `unregister_service` 的内核。
+///
+/// 接收引用而不是 `tauri::State`：退出流程跑在 `RunEvent` 回调的异步任务里，
+/// 不在命令上下文中，拿不到 `State`，但要做的事完全一样。
+pub async fn unregister_service_inner(state: &SharedDiscoveryState) -> Result<(), String> {
     let mut s = state.lock().await;
     if let (Some(daemon), Some(fullname)) = (s.daemon.as_ref(), s.registered_fullname.as_ref()) {
         println!("[mdns] 注销服务: {}", fullname);

@@ -15,7 +15,6 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tokio::sync::{oneshot, Mutex};
 
-// ---------- 服务器控制状态 ----------
 // 与 transfer::ServerState 风格一致：cancel_sender 用于停止，
 // task_handle 持有后台任务，port 记录实际监听端口供前端生成二维码。
 // web_state 保存 axum 共享状态，供 create_pair_token 命令访问。
@@ -36,8 +35,6 @@ impl Default for WebUploadServerControl {
         }
     }
 }
-
-// ---------- Tauri 命令 ----------
 
 /// 启动手机上传 HTTP 服务器
 ///

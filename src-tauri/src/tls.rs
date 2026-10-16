@@ -85,8 +85,6 @@ fn short(fingerprint: &str) -> String {
     fingerprint.chars().take(12).collect()
 }
 
-// ---------- 本机身份 ----------
-
 /// 本机设备身份：一对长期密钥 + 一张自签证书
 ///
 /// 首次启动生成并落盘，之后一直复用——指纹一旦变化，所有对端都要重新确认一次。
@@ -192,8 +190,6 @@ impl DeviceIdentity {
         Ok(Arc::new(config))
     }
 }
-
-// ---------- 证书验证器 ----------
 
 /// 服务端侧：接受任意客户端证书，但仍验证「对端确实持有该证书的私钥」
 ///
@@ -325,8 +321,6 @@ impl ServerCertVerifier for PinnedServerCert {
     }
 }
 
-// ---------- 建连 ----------
-
 /// 在一条已建立的 TCP 连接上完成服务端 TLS 握手
 pub async fn accept(tcp: TcpStream, config: Arc<ServerConfig>) -> Result<ServerTlsStream> {
     tokio::time::timeout(
@@ -382,7 +376,6 @@ fn first_cert_fingerprint(certs: Option<&[CertificateDer<'static>]>) -> Option<S
     certs.and_then(|list| list.first()).map(fingerprint_of)
 }
 
-// ---------- 测试 ----------
 //
 // 这里测的是「加密与身份校验真的生效」，不是「代码能编译」。三件事：
 //   1. 两条真实 TCP 连接能完成 TLS 握手，并各自取到对方的证书指纹

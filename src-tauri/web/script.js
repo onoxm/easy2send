@@ -51,7 +51,6 @@ const META_DEFAULT = '单文件最大 10GB'
 
 let sessionToken = null
 
-// ---------- 主题三态（跟随系统 / 浅色 / 深色） ----------
 // 「跟随系统」时刻意**不写** data-theme，交给 style.css 的 media 查询去决定，
 // 这样即使这段脚本没跑起来（或 localStorage 被禁用），页面也仍能正确跟随系统。
 
@@ -145,8 +144,6 @@ function render(state, copy = {}) {
   show(els.retryBtn, state === 'failed')
 }
 
-// ---------- 配对流程 ----------
-
 async function pair() {
   if (!pairToken) {
     render('failed', { title: '缺少配对凭证', hint: '请重新扫描二维码' })
@@ -184,8 +181,6 @@ async function pair() {
     render('failed', { title: '网络错误', hint: e.message })
   }
 }
-
-// ---------- 文件上传 ----------
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B'

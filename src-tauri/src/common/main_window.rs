@@ -13,3 +13,12 @@ pub fn show_main_window(app: &AppHandle) {
         let _ = window.set_focus();
     }
 }
+
+/// 把主窗口拉回前台（前端可调版本）
+///
+/// 用于「弹窗前先让窗口可见」：窗口可能被最小化、或已经从托盘收起来了，
+/// 这时弹确认框用户根本看不见 —— 而 backend 那头的兜底超时照样会走完。
+#[tauri::command]
+pub fn show_window(app: AppHandle) {
+    show_main_window(&app);
+}

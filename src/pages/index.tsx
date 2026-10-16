@@ -4,6 +4,7 @@ import {
   innerToast,
   Layout,
   manualLinkDialog,
+  OverlayScroll,
   PeerAvatar,
   PeerIdentity,
   qrUploadDialog
@@ -22,7 +23,6 @@ import {
   IconSun
 } from '@tabler/icons-react'
 import { chainClassNames, ThemeMode, useThemePro } from 'ono-react-element'
-import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
@@ -226,7 +226,7 @@ export default () => {
               </p>
             </div>
           ) : (
-            <OverlayScrollbarsComponent
+            <OverlayScroll
               className="h-[215px] border-t border-line-100"
               options={{
                 scrollbars: {
@@ -269,7 +269,7 @@ export default () => {
                   )
                 )}
               </div>
-            </OverlayScrollbarsComponent>
+            </OverlayScroll>
           )}
         </div>
 

@@ -30,14 +30,11 @@ importers:
         specifier: ~2.10.1
         version: 2.10.1
       ono-react-element:
-        specifier: ^0.6.3
-        version: 0.6.3(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.6.7
+        version: 0.6.7(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       overlayscrollbars:
         specifier: ^2.16.0
         version: 2.16.0
-      overlayscrollbars-react:
-        specifier: ^0.5.6
-        version: 0.5.6(overlayscrollbars@2.16.0)(react@19.2.8)
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -61,8 +58,8 @@ importers:
         specifier: ^20.5.0
         version: 20.5.3
       '@onoxm/vite-plugin-auto-router':
-        specifier: ^0.10.5
-        version: 0.10.5(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))
+        specifier: ^0.10.7
+        version: 0.10.7(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
@@ -610,11 +607,11 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@onoxm/event@0.6.3':
-    resolution: {integrity: sha512-RVJGLa9rkRGogztkZNmzaSwtYc3icnVexwRKMHlX7zvwGLXwulh9Q930BtaU636XfHdzaXnAiAfzBwBkEwJiPw==}
+  '@onoxm/event@0.6.7':
+    resolution: {integrity: sha512-51wI/nOTbjzgN4zmIsZfoUdmU6D2ONKrOaL+guwTjOiF5npaAf+exuSzwdLQZ61Wq8nsTWjO0HpDAJVIJnadXQ==}
 
-  '@onoxm/react-hooks@0.6.3':
-    resolution: {integrity: sha512-yGefMc9fuoNjggMw+UApPCc4S5TTHJxDEkZBzSXbJlskrhFrmr3D273sop5u7ZC7g/1dxYqvY5u+yHRAaOCpjQ==}
+  '@onoxm/react-hooks@0.6.7':
+    resolution: {integrity: sha512-3RaKNgqNQ4iXmyEVYoW1WWeoHHaw+GcvflBvxa0dRnihL9t5IoFzT0yW/UPOci7GV020WdHNlunhitYe5OkCCA==}
     peerDependencies:
       '@types/react': '>=19'
       react: '>=19'
@@ -622,8 +619,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@onoxm/react-tools@0.6.3':
-    resolution: {integrity: sha512-x8KvCfn1gvHd+CbtG2VDQLzF6tgFfTzdRJKmEFZsO5JlbIULdNZA648OLqDjZ1Wvb40r3tup2xVJPsGoq0PC0w==}
+  '@onoxm/react-tools@0.6.7':
+    resolution: {integrity: sha512-1nE/tkfOs+VmAPuL/+1fBjSHLBVPhXgxMdNjTymuczrwWhDPAtIaCXhGl12hh2lJlRWxEsSY7HX1ELij4bw+IA==}
     peerDependencies:
       '@types/react': '>=19'
       '@types/react-dom': '>=19'
@@ -635,11 +632,11 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@onoxm/utils@0.6.3':
-    resolution: {integrity: sha512-uZqMMX12DElWYqwUHl5dpcD+YVolhhRdXirLYOvZrfYFeu8GPB4F2JrZ9BGGUGBr2eFosRBfZbxtOwofmxTD7A==}
+  '@onoxm/utils@0.6.7':
+    resolution: {integrity: sha512-kor3HLcbKFX2hzqZCCzQ4paPVYFiDUL7UDa65mf9oiEEKBsxYt+Dd20wN/XBPpUM+3cKwXS04A9T1ki6cWXevw==}
 
-  '@onoxm/vite-plugin-auto-router@0.10.5':
-    resolution: {integrity: sha512-7cRXMzLa/Gei0JKsEAxeZWfPGHF5wOqwopIxJGoB0OvyHaFVAv/EwPvn9PMDM78ygXfWwbZTMUR0XTTGL/qtaA==}
+  '@onoxm/vite-plugin-auto-router@0.10.7':
+    resolution: {integrity: sha512-a8vRRNhytaTuO/MykQvN+0Eq5+Fy++zpHuyu+4mbE7NLQ/tpaq3Jxrm0e2ZJzQOt9QsNaY4DeoSd2xlYJeBJKA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       react-router: ^7.0.0
@@ -2029,8 +2026,8 @@ packages:
     resolution: {integrity: sha512-5NcSkPHhwTVFIQN+TUqXoS5+dlElHXdpAWu9I0HP20YOtIi+aZ0Ct82jdlILDxjLEAWwvm+qj1m6aEtsDVmm6Q==}
     engines: {node: '>=6'}
 
-  ono-react-element@0.6.3:
-    resolution: {integrity: sha512-SSWOkTpPgBz8imQ6BP9peS8xlUtk8YadI+sTeTnuVoNfeyeZDzeQfYCdhLIQAH8yxk8dZlzwhkQIPt5iQtYKIA==}
+  ono-react-element@0.6.7:
+    resolution: {integrity: sha512-vCJPQ9JQTgmVtUYWKXR5SlsTZicgzFuwMwxvGobDqWNFkENGP+5/rV7u0Te8k3iZSBbrWcknxQr6AMInDruwMA==}
     peerDependencies:
       '@types/react': '>=19'
       '@types/react-dom': '>=19'
@@ -2045,12 +2042,6 @@ packages:
   ora@5.4.1:
     resolution: {integrity: sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ==}
     engines: {node: '>=10'}
-
-  overlayscrollbars-react@0.5.6:
-    resolution: {integrity: sha512-E5To04bL5brn9GVCZ36SnfGanxa2I2MDkWoa4Cjo5wol7l+diAgi4DBc983V7l2nOk/OLJ6Feg4kySspQEGDBw==}
-    peerDependencies:
-      overlayscrollbars: ^2.0.0
-      react: '>=16.8.0'
 
   overlayscrollbars@2.16.0:
     resolution: {integrity: sha512-N03oje/q7j93D0aLZtoCdsDSYLmhheSsv8H7oSLE7HhdV9P/bmCURtLV/KbPye7P/bpfyt/obSfDpGUYoJ0OWg==}
@@ -3087,29 +3078,29 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@onoxm/event@0.6.3':
+  '@onoxm/event@0.6.7':
     dependencies:
-      '@onoxm/utils': 0.6.3
+      '@onoxm/utils': 0.6.7
 
-  '@onoxm/react-hooks@0.6.3(@types/react@19.2.17)(react@19.2.8)':
+  '@onoxm/react-hooks@0.6.7(@types/react@19.2.17)(react@19.2.8)':
     dependencies:
-      '@onoxm/utils': 0.6.3
+      '@onoxm/utils': 0.6.7
       react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.17
 
-  '@onoxm/react-tools@0.6.3(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@onoxm/react-tools@0.6.7(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@onoxm/utils': 0.6.3
+      '@onoxm/utils': 0.6.7
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.4(@types/react@19.2.17)
 
-  '@onoxm/utils@0.6.3': {}
+  '@onoxm/utils@0.6.7': {}
 
-  '@onoxm/vite-plugin-auto-router@0.10.5(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))':
+  '@onoxm/vite-plugin-auto-router@0.10.7(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))':
     dependencies:
       vite: 7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
     optionalDependencies:
@@ -4318,12 +4309,12 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  ono-react-element@0.6.3(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  ono-react-element@0.6.7(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      '@onoxm/event': 0.6.3
-      '@onoxm/react-hooks': 0.6.3(@types/react@19.2.17)(react@19.2.8)
-      '@onoxm/react-tools': 0.6.3(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@onoxm/utils': 0.6.3
+      '@onoxm/event': 0.6.7
+      '@onoxm/react-hooks': 0.6.7(@types/react@19.2.17)(react@19.2.8)
+      '@onoxm/react-tools': 0.6.7(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@onoxm/utils': 0.6.7
       '@popperjs/core': 2.11.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
@@ -4342,11 +4333,6 @@ snapshots:
       log-symbols: 4.1.0
       strip-ansi: 6.0.0
       wcwidth: 1.0.1
-
-  overlayscrollbars-react@0.5.6(overlayscrollbars@2.16.0)(react@19.2.8):
-    dependencies:
-      overlayscrollbars: 2.16.0
-      react: 19.2.8
 
   overlayscrollbars@2.16.0: {}
 

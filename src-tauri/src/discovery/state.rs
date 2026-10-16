@@ -67,8 +67,6 @@ fn same_ipv4_subnet(a: &Ipv4Addr, b: &Ipv4Addr) -> bool {
     a[0] == b[0] && a[1] == b[1] && a[2] == b[2]
 }
 
-// ---------- 时间工具 ----------
-
 /// 当前 Unix 时间戳（毫秒）
 pub fn current_unix_ms() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -77,8 +75,6 @@ pub fn current_unix_ms() -> u64 {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
 }
-
-// ---------- 设备表操作 ----------
 
 /// 新增或更新设备，返回操作类型并触发对应事件
 pub async fn upsert_device(

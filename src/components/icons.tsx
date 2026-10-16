@@ -1,4 +1,9 @@
-import { useId, type CSSProperties, type SVGProps } from 'react'
+import logoSvg from '@/assets/logo.svg'
+import {
+  type CSSProperties,
+  type ImgHTMLAttributes,
+  type SVGProps
+} from 'react'
 
 export interface LocalIconProps extends Omit<
   SVGProps<SVGSVGElement>,
@@ -49,46 +54,49 @@ export function Linux({
   )
 }
 
-/** Easy2Send 品牌标 */
+/** 品牌标的 props：位图没有 SVG 那套描边 / 填充，属性集换成 img 的 */
+export interface LogoProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  'src' | 'width' | 'height' | 'className' | 'style' | 'alt'
+> {
+  /** 边长，默认 28（数字按 px 处理） */
+  size?: number | string
+  className?: string
+  style?: CSSProperties
+  /**
+   * 无障碍替代文本。默认空串 = 装饰性图片 —— 品牌名一律由旁边的文字承担，
+   * 这里再报一遍只会让读屏把「Easy2Send Easy2Send」念两次。
+   */
+  alt?: string
+}
+
+/**
+ * Easy2Send 品牌标（矢量版，`src/assets/icons/logo.svg`）。
+ *
+ * 用矢量而不是位图：这个标会以多种尺寸出现（页头 28、关于页更大），位图一放大就糊。
+ * 矢量稿由 `src-tauri/icons/icon.icns` 内的 1024×1024 位图描摹而来，13 条路径、
+ * 24.7KB —— 超过 Vite 的 assetsInlineLimit（4KB），会作为独立文件产出而非内联
+ * data URI（tauri.conf.json 的 csp 为 null，两条路都通）。描摹会丢掉原图的线性渐变
+ * （被量化为同色系色阶），好在原渐变本身很窄，实测回渲染与原图无明显差异。
+ */
 export function Logo({
   size = 28,
   className,
-  style
-}: Omit<LocalIconProps, 'fill' | 'strokeWidth'>) {
-  // useId 保证同页多次渲染时渐变 id 不冲突
-  const gradientId = `e2s-logo-${useId().replace(/:/g, '')}`
-
+  style,
+  alt = '',
+  ...rest
+}: LogoProps) {
   return (
-    <svg
+    <img
+      src={logoSvg}
       width={size}
       height={size}
-      viewBox="0 0 28 28"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      alt={alt}
       className={className}
       style={style}
-    >
-      <defs>
-        <linearGradient
-          id={gradientId}
-          x1="0"
-          y1="0"
-          x2="28"
-          y2="28"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#6C78EA" />
-          <stop offset="1" stopColor="#4A55D6" />
-        </linearGradient>
-      </defs>
-      <rect width="28" height="28" rx="9" fill={`url(#${gradientId})`} />
-      <path
-        d="M9.6 18.4L18.4 9.6M18.4 9.6H13.6M18.4 9.6V14.4"
-        stroke="#FFFFFF"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      // 桌面端禁掉图片拖拽：拖到窗口上会起一个图片拖影，干扰传输页的文件拖放接收
+      draggable={false}
+      {...rest}
+    />
   )
 }

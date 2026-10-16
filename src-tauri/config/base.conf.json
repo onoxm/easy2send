@@ -5,5 +5,7 @@
   "concurrentUploads": 2,
   "autoCheckUpdate": true,
   "fontFamily": "",
-  "fontScale": 100
+  "fontScale": 100,
+  "closeAction": "ask",
+  "notifyOnComplete": true
 }

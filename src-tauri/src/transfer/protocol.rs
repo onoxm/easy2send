@@ -25,7 +25,6 @@ pub fn tune_socket_buffers(stream: &TcpStream) {
     }
 }
 
-// ---------- 协议标识 ----------
 /// 单文件模式（兼容旧版接收端，无 task_id）
 pub const MODE_FILE: u8 = 0;
 /// 文件夹模式（兼容旧版接收端，无 task_id）
@@ -58,7 +57,6 @@ pub const MODE_FOLDER_TASK_AUTH: u8 = 8;
 /// 不带 task_id：它针对的是「这次会话」，不是某一条传输任务。
 pub const MODE_DISCONNECT: u8 = 9;
 
-// ---------- 连接应答 ----------
 /// 对端接受本次连接
 ///
 /// 一个字节，两处复用：
@@ -73,7 +71,6 @@ pub const REPLY_REJECTED: u8 = 0;
 /// 接收端先超时则关掉等待、回拒绝；发送端先超时则放弃本次连接。
 pub const HANDSHAKE_CONFIRM_TIMEOUT_SECS: u64 = 30;
 
-// ---------- 条目类型（文件夹模式内） ----------
 pub const ENTRY_FILE: u8 = 0;
 pub const ENTRY_DIR: u8 = 1;
 
@@ -104,8 +101,6 @@ fn normalize(path: &Path) -> PathBuf {
     out
 }
 
-// ---------- task_id 转换 ----------
-
 /// 16 字节 task_id → 32 字符 hex 字符串
 pub fn bytes_to_task_id_hex(bytes: &[u8; 16]) -> String {
     bytes.iter().map(|x| format!("{:02x}", x)).collect()
@@ -121,8 +116,6 @@ pub fn task_id_hex_to_bytes(hex: &str) -> [u8; 16] {
     }
     out
 }
-
-// ---------- 字符串读写（4 字节 BE 长度前缀 + UTF-8） ----------
 
 /// 长度前缀字符串允许的最大字节数
 ///
@@ -172,8 +165,6 @@ pub async fn read_string<R: AsyncRead + Unpin>(r: &mut R) -> Result<String> {
     Ok(String::from_utf8(buf)?)
 }
 
-// ---------- 进度事件（server/client 共用） ----------
-
 /// 检查是否应发射进度事件（100ms 限频或传输完成时强制发射）
 pub fn should_emit(last_emit: &Instant, is_final: bool) -> bool {
     last_emit.elapsed() >= Duration::from_millis(100) || is_final
@@ -222,8 +213,6 @@ pub fn emit_progress(
     }
     let _ = app.emit(event, payload);
 }
-
-// ---------- 文件夹遍历（client 发送端用） ----------
 
 /// 递归收集目录条目（目录在前、文件在后，排序保证发送/接收两端一致）
 pub async fn collect_entries(root: &Path, out: &mut Vec<(u8, PathBuf)>) -> Result<()> {

@@ -272,8 +272,7 @@ export const TaskCardList = ({
   return (
     <div className="h-[calc(100%-122px)]">
       <FixedVirtualList
-        wrapperClassName="gap-[10px]"
-        containerClassName="scroll_vertical"
+        classNames={{ wrapper: 'gap-[10px]', container: 'scroll_vertical' }}
         dataSource={dataSource}
         overscan={5}
         itemSize={CARD_HEIGHT}

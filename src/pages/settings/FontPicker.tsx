@@ -83,8 +83,16 @@ export const FontPicker = ({ value, onChange }: FontPickerProps) => {
 
   return (
     <Select
-      optionsClassName="max-h-[200px] overflow-y-auto overscroll-contain"
+      /* ⛔ 这里**不要**写 `overflow-y-auto overscroll-contain`（原先有，2026-10-16 删）。
+         实测（.workbuddy/tmp/wheelprobe4.mjs）：className 会被 ono 落到**触发区外壳**
+         `.ono-input-wrapper` 上，而不是下拉面板的选项列表 —— 所以它压根没起到「限高」
+         的作用（限高靠 showOptionEntries）。副作用却是实打实的：`overflow:auto` 让外壳
+         成为滚动容器，`overscroll-behavior:contain` 又明令禁止把滚轮交给祖先滚动容器，
+         于是**鼠标停在「界面字体」这个控件上滚滚轮，整个设置页一动不动**（外壳自身
+         36/36 没有可滚余量，那点位移就被就地吃掉了）。同页另外两个下拉没有这两个类，
+         滚轮正常。要限高就用 showOptionEntries。 */
       defaultValue={value || SYSTEM_FONT}
+      showOptionEntries={4}
       filterOption
       notFoundContent="没有匹配的字体"
       options={options!}

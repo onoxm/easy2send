@@ -120,8 +120,6 @@ impl TrustState {
         Ok(())
     }
 
-    // ---------- 信任名单（准入判定） ----------
-
     /// 按证书指纹查信任记录
     ///
     /// 指纹为空直接判否：没走过 TLS 的连接、或升级前的旧记录，都不该被当成可信。
@@ -227,8 +225,6 @@ impl TrustState {
         self.touch_fingerprint(fingerprint, "", now);
     }
 
-    // ---------- 已知对端（只用于固定对端证书） ----------
-
     /// 记住一台本机主动连过的设备的证书指纹
     ///
     /// **这不是「信任」。** 区别很关键：`trust()` 表示「我允许它往本机写文件」，
@@ -278,8 +274,6 @@ impl TrustState {
         list
     }
 
-    // ---------- 待确认握手 ----------
-
     /// 登记一次等待用户决策的握手，返回接收端要 await 的通道。
     /// 同一设备重复发起时丢弃旧的：旧请求会因 sender 被覆盖而立刻收到 Err，按拒绝处理。
     pub fn register_pending(&mut self, device_id: &str) -> oneshot::Receiver<bool> {
@@ -301,8 +295,6 @@ impl TrustState {
         self.pending.remove(device_id);
     }
 }
-
-// ---------- Tauri 命令（设置页「已信任设备」） ----------
 
 /// 列出已信任设备，按最近通过校验的时间倒序
 #[tauri::command]

@@ -1,5 +1,11 @@
+import { cancelExit, minimizeToTray, quitApp, showWindow } from '@/api/app'
 import { respondConnection, startDiscovery } from '@/api/discovery'
-import { connectionRequestDialog, innerToast } from '@/components'
+import {
+  closeConfirmDialog,
+  confirmDialog,
+  connectionRequestDialog,
+  innerToast
+} from '@/components'
 import {
   useCheckUpdate,
   useFont,
@@ -15,6 +21,41 @@ import { invoke } from '@tauri-apps/api/core'
 import { Event } from '@tauri-apps/api/event'
 import { useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router'
+
+/**
+ * 真要退出了：有任务没传完就先确认一次，再走善后
+ *
+ * 中断会把正在传的文件留成半成品，值得让用户明确点一次；没有任务就直接退，
+ * 不拿一句废话拦一道。窗口可能正收在托盘里，弹确认框之前先把它拉回前台 ——
+ * 否则用户根本看不到，而后端那道兜底超时照样会把应用关掉。
+ *
+ * 定义在组件外：它只读 store 的即时快照、不依赖任何渲染期状态，
+ * 放进组件里反而会被 useTauriListeners 的闭包钉在旧渲染上。
+ */
+const requestQuit = async (pending: number) => {
+  if (pending === 0) {
+    quitApp().catch(() => {})
+    return
+  }
+
+  try {
+    await showWindow()
+  } catch {
+    // 窗口没拉起来不该拦住退出决定，照样把确认框推出去
+  }
+
+  confirmDialog({
+    title: '退出 Easy2Send',
+    // 只有「真要退出」才会走到这里：最小化到托盘在调用处就 return 了 —— 程序没关、
+    // 任务也没中断，那条路径上不存在代价，也就不该出现这条警示。
+    warn: `还有 ${pending} 个任务未完成，退出后会被中断`,
+    confirmText: '退出',
+    danger: true,
+    onConfirm: () => quitApp().catch(() => {}),
+    // 用户选择留下：必须回后端一声，否则它那道兜底超时后照样会关掉应用
+    onCancel: () => cancelExit().catch(() => {})
+  })
+}
 
 export default () => {
   useConfig()
@@ -147,6 +188,50 @@ export default () => {
         navigate('/')
         // 页面会自己跳回首页，但不说明原因的话用户会以为自己点错了什么
         innerToast.warning(`${device_name || '对方'}已断开连接`)
+      },
+      // 退出请求：窗口关闭与托盘「退出」都被后端拦在这里，等本机回话
+      // （见后端 common/exit.rs）。两条路要问的问题不一样，靠 payload.source 区分。
+      'app-exit-requested': (
+        event: Event<{ runningTasks?: number; source?: 'close' | 'quit' }>
+      ) => {
+        // 后端只报得出「正在跑的发送任务」；排队中的任务和接收方向的任务只记在
+        // 本机（store.activeTaskCount 由传输页维护）。两边各持一半，取大者才是全貌。
+        const pending = Math.max(
+          useStore.getState().activeTaskCount,
+          event.payload?.runningTasks ?? 0
+        )
+
+        // 托盘「退出」：用户在托盘里已经明确说了要退出，再问一遍「要不要最小化到
+        // 托盘」是明知故问 —— 那个问题是关窗口才有的。只有「还有任务没传完」值得确认。
+        if (event.payload?.source !== 'close') {
+          requestQuit(pending)
+          return
+        }
+
+        // 关窗口：勾过「记住我的选择」就照它办，不再打扰
+        const remembered = useStore.getState().closeAction
+        if (remembered === 'tray') {
+          minimizeToTray().catch(() => {})
+          return
+        }
+        if (remembered === 'quit') {
+          requestQuit(pending)
+          return
+        }
+
+        // 窗口可能是从托盘里被唤起的（点了 X 说明它可见，但最小化状态下同样收不到），
+        // 先把它拉回前台再弹 —— 弹窗看不见，后端那道兜底超时就变成唯一的结局了
+        showWindow().catch(() => {})
+        closeConfirmDialog({
+          onChoose: ({ action, remember }) => {
+            if (remember) useStore.setState({ closeAction: action })
+            if (action === 'tray') minimizeToTray().catch(() => {})
+            else requestQuit(pending)
+          },
+          // ESC / 右上角 / 点遮罩：什么都没选，窗口保持原样。同样要回后端一声，
+          // 否则兜底超时到了照样会把应用关掉
+          onCancel: () => cancelExit().catch(() => {})
+        })
       },
       'web-upload-paired': () => {
         useStore.setState({

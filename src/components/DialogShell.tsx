@@ -1,3 +1,4 @@
+import { IconAlertTriangle } from '@tabler/icons-react'
 import { chainClassNames, TemplateDialog } from 'ono-react-element'
 import type { ReactNode } from 'react'
 
@@ -79,6 +80,22 @@ export const DialogTitle = ({
   </div>
 )
 
+/**
+ * 警示条：弹窗里那一句「这件事的代价是什么」。
+ *
+ * 做成部件而不是让各弹窗自己写一个橙色 div —— 退出确认与「断开连接」用的是同一条，
+ * 配色（warn-100 / warn-600）、图标、间距只在这里定义一次，不会各自漂移。
+ *
+ * 图标不传 color / fill：Tabler 默认吃 currentColor，颜色由容器的 text-warn-600
+ * 决定，换主题只动 token 就够。
+ */
+export const DialogWarn = ({ children }: { children: ReactNode }) => (
+  <div className="flex items-start gap-2.5 rounded-control bg-warn-100 px-3 py-2.5 text-warn-600">
+    <IconAlertTriangle size={16} stroke={2} className="shrink-0 mt-px" />
+    <p className="text-caption/[1.4545] font-normal">{children}</p>
+  </div>
+)
+
 /** 按钮区：右下角横排（需要顶到弹窗底部时用 className 补 mt-auto） */
 export const DialogActions = ({
   children,
@@ -98,8 +115,12 @@ export const DialogActions = ({
  * 尺寸与圆角所有弹窗共用，只有底色/描边随变体变。危险按钮走「浅 danger 底 +
  * state-tint 叠色」，与项目其它危险按钮一致（没有单独的 .state-danger，
  * 浅底按钮统一叠 .state-tint，理由见 styles/global.css）。
+ *
+ * ⚠️ `font-medium` 不能省：设计稿的按钮标签是「card 13 Medium」，而 `theme.text`
+ * 只给字号与行高、不产出字重（见 design-tokens.md），所以字重必须自己叠。
+ * 兄弟页面凡用 `text-card` 处也都另配了 `font-medium`（index.tsx / transfer 页）。
  */
-const BTN_SIZE = 'px-4 py-2.125 text-card/[1.4615] rounded-control'
+const BTN_SIZE = 'px-4 py-2.125 text-card/[1.4615] font-medium rounded-control'
 
 const BTN_VARIANTS = {
   primary:

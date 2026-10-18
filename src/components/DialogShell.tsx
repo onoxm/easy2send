@@ -125,7 +125,24 @@ const BTN_SIZE = 'px-4 py-2.125 text-card/[1.4615] font-medium rounded-control'
 const BTN_VARIANTS = {
   primary:
     'bg-brand-500 text-on-brand shadow-[var(--shadow-brand)] state-brand',
-  secondary: 'border border-line-200 text-ink-700 state-neutral',
+  /* ⚠️ `bg-transparent` 与 `border-solid` 一个都不能省 —— 这条配方要落在两种宿主上：
+     原生 `<button>`（五个弹窗现在都用它）与 ono 的 `<Button>`（设置页的「更新软件」）。
+     后者默认 `type=primary`，会带上 `.ono-btn-primary` 的硬编码样式，其中两条正好咬住
+     次按钮：
+
+       · `background-color:#409eff` —— 次按钮设计上是「透出弹窗底色的描边按钮」，自身
+         没有底色；不写 `bg-transparent` 就会露出这层亮蓝（更新弹窗的「稍后再说」曾这
+         么变成蓝底，2026-10-16 定位后已把该弹窗改用原生 button —— 这里是第二道防线）。
+       · `border:none` —— 它把 border-style 重置成 none。而 `.border` 只产出
+         `border-width:1px`（style 指望 reset 的 `*{border-style:solid}` 兜底），
+         style 一旦是 none，computed border-width 就塌成 0px，描边整个消失。
+
+     这两条与 `bg-*` / 边框工具类同为 (0,1,0) 特异性，只靠产物里的先后次序判胜负
+     （uno 在 ono 之后 ⇒ 写出来才赢）。原生 `<button>` 之所以看着正常，是 reset 恰好把
+     底色置成了透明、border-style 置成了 solid —— 属于「碰巧对」，换个宿主立刻翻车。
+     所以这里不依赖任何宿主的默认值，把「透明底 + 实线描边」显式钉死。 */
+  secondary:
+    'bg-transparent border border-solid border-line-200 text-ink-700 state-neutral',
   danger: 'bg-danger-100 text-danger-600 state-tint'
 } as const
 

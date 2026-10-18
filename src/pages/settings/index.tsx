@@ -1,5 +1,5 @@
 import { setDeviceName } from '@/api/discovery'
-import { openFile } from '@/api/fs'
+import { cleanPartFiles, openFile } from '@/api/fs'
 import { restartApp } from '@/api/tauri'
 import { listTrustedDevices, revokeTrustedDevice } from '@/api/trust'
 import {
@@ -27,6 +27,7 @@ export default () => {
     savePath,
     autoCheckUpdate,
     notifyOnComplete,
+    autoCleanPartFiles,
     canUpdate,
     deviceName,
     concurrentUploads,
@@ -40,6 +41,7 @@ export default () => {
     'canUpdate',
     'autoCheckUpdate',
     'notifyOnComplete',
+    'autoCleanPartFiles',
     'deviceName',
     'concurrentUploads',
     'version',
@@ -83,6 +85,31 @@ export default () => {
       innerToast.success(`已取消对「${deviceName}」的信任`)
     } catch (e) {
       innerToast.error(`取消信任失败: ${e}`)
+    }
+  }
+
+  /**
+   * 切换「清理未完成的文件」
+   *
+   * 除了写设置，打开时立刻清一次：用户点这个开关的意图就是「把那些半截文件处理掉」，
+   * 让他为这个动作再重启一次软件说不通。清理只碰上次运行遗留的 `.part`，
+   * 正在传输的文件在 active 组里，不受影响（见后端 transfer/parts.rs）。
+   */
+  const handleToggleClean = async (enabled: boolean) => {
+    useStore.setState({ autoCleanPartFiles: enabled })
+    if (!enabled) return
+    try {
+      const report = await cleanPartFiles()
+      if (report.removed > 0) {
+        innerToast.success(`已清理 ${report.removed} 个未完成的文件`)
+      } else if (report.failed > 0) {
+        // 被占用（常见于下载目录正被别的程序索引）不算失败，下次启动会自动重试
+        innerToast.warning(`${report.failed} 个文件被占用，稍后会自动重试`)
+      } else {
+        innerToast.success('没有需要清理的文件')
+      }
+    } catch (e) {
+      innerToast.error(`清理失败: ${e}`)
     }
   }
 
@@ -366,6 +393,34 @@ export default () => {
           aria-label="传输完成通知"
           onChange={bl => useStore.setState({ notifyOnComplete: bl })}
         />
+      )
+    },
+    {
+      /* 设计稿里没有这一项，位置跟着「传输完成通知」—— 两者同属「传输收尾」，
+         都排在列表末段，不插到「保存路径」「并发传输数」那些入口配置中间 */
+      title: '清理未完成的文件',
+      children: (
+        <div className="flex items-center gap-2.5">
+          <Switch
+            style={{ width: 36, height: 20 }}
+            id="autoCleanPartFiles"
+            color={theme === 'light' ? '#14a34a' : '#35c077'}
+            checked={autoCleanPartFiles}
+            aria-label="自动清理未完成的文件"
+            onChange={bl => void handleToggleClean(bl)}
+          />
+          <p className="text-body/[1.4167] text-ink-500 font-normal shrink-0">
+            启动时删除上次没传完的临时文件
+          </p>
+        </div>
+      ),
+      help: (
+        <p className="text-ink-600 text-caption/[1.4545] font-normal">
+          传输中断（对方断网、强制关闭软件）时，保存目录里会留下 `.part`
+          半成品。开启后每次启动自动删掉它们 ——
+          只删本程序自己登记过的那几个，不会扫目录、也不会动别的文件；
+          正在传输的文件同样不受影响。关掉则一直保留，需要自己手动清理。
+        </p>
       )
     },
     {

@@ -1,5 +1,6 @@
 import { cancelExit, minimizeToTray, quitApp, showWindow } from '@/api/app'
 import { respondConnection, startDiscovery } from '@/api/discovery'
+import { cleanPartFiles } from '@/api/fs'
 import {
   closeConfirmDialog,
   confirmDialog,
@@ -64,6 +65,27 @@ export default () => {
   useFont()
 
   useCheckUpdate()
+
+  /* 启动时清理上次没传完的 `.part`（受设置页「清理未完成的文件」控制）
+   *
+   * 为什么不在后端 setup 里做：这个开关存在前端的持久化里，后端启动时读不到它。
+   * 而「要不要删用户的文件」这种决定，只能由用户的设置来说 —— 后端擅自清一次，
+   * 等于把默认值强加给已经关掉它的人。
+   *
+   * 只跑一次：根布局在应用生命周期内只挂载这一回，空依赖即可。 */
+  useEffect(() => {
+    // 写成 `=== false` 与「传输完成通知」同一套判据：默认是开，只有明确关掉才跳过，
+    // 持久化里漏进 null / 脏值（见 memory/store-persist.md）不至于把清理悄悄关掉
+    if (useStore.getState().autoCleanPartFiles === false) return
+    cleanPartFiles()
+      .then(report => {
+        if (report.removed > 0) {
+          innerToast.success(`已清理 ${report.removed} 个未完成的文件`)
+        }
+      })
+      // 清理失败不打扰用户：它只是收尾工作，不影响收发文件
+      .catch(() => {})
+  }, [])
 
   const { deviceName, version, savePath, connectedDevice } = useStore([
     'deviceName',

@@ -106,6 +106,9 @@ export default () => {
   const seedsQueueRef = useRef<TransferTaskSeed[]>([])
   const runningCountRef = useRef(0)
   const recvRunningRef = useRef(0)
+  // 本批接收里有没有出现过失败。失败也算「这次接收结束了」（计数要减），
+  // 但那一批结束时不该再弹一句「接收完成」—— 有文件没收到，报喜是错的。
+  const recvFailedRef = useRef(false)
   // 接收完成防抖定时器：递减到 0 后延迟触发通知，期间若有新任务到达则重置
   const recvCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -299,6 +302,8 @@ export default () => {
       })
       // 有接收任务时自动切到接收 tab
       setActiveTab('receive')
+      // 从 0 起跳说明是新的一批，把上一批的失败标记清掉
+      if (recvRunningRef.current === 0) recvFailedRef.current = false
       recvRunningRef.current += 1
       // 新任务到达：取消挂起的完成通知定时器
       if (recvCompleteTimerRef.current) {
@@ -326,10 +331,38 @@ export default () => {
         recvCompleteTimerRef.current = setTimeout(() => {
           recvCompleteTimerRef.current = null
           if (unmounted) return
-          if (recvRunningRef.current === 0) {
+          // 这一批里只要有一个失败过，就不报「接收完成」—— 有文件没收到，报喜是错的
+          if (recvRunningRef.current === 0 && !recvFailedRef.current) {
             notifyTransferDone('接收完成')
           }
         }, 200)
+      }
+    }
+
+    /**
+     * 接收失败：对方中断 / 断网 / 写盘失败
+     *
+     * 这条事件是补上去的 —— 此前接收方向只有 start/progress/complete 三种，后端
+     * 出错时只打一行日志。于是对端被强杀或拔网线时，本机卡片会永远停在「传输中」、
+     * 进度不动，既没报错也没提示，用户只能自己发现不对劲。发送方向一直有
+     * `send-error-v2` 兜底，现在两边对称了。
+     */
+    const handleRecvError = (ev: Event<Record<string, unknown>>) => {
+      const p = ev.payload as { task_id: string; message: string }
+      if (unmounted) return
+      upsertTask(p.task_id, {
+        direction: 'receive',
+        status: 'error',
+        errorMessage: p.message
+      })
+      recvFailedRef.current = true
+      // 失败也是「这次接收结束了」：不把额度还回去的话，计数永远不归零，
+      // 之后所有批次的完成通知都会静默失效
+      recvRunningRef.current = Math.max(0, recvRunningRef.current - 1)
+      // 已挂起的完成通知要撤掉：这一批已经有文件没收到，不能再报「接收完成」
+      if (recvCompleteTimerRef.current) {
+        clearTimeout(recvCompleteTimerRef.current)
+        recvCompleteTimerRef.current = null
       }
     }
 
@@ -344,7 +377,8 @@ export default () => {
       listen<ProgressPayload>('receive-progress-v2', ev =>
         applyProgress(ev, 'receive')
       ),
-      listen('receive-complete-v2', handleRecvComplete)
+      listen('receive-complete-v2', handleRecvComplete),
+      listen('receive-error-v2', handleRecvError)
     ]
 
     return () => {

@@ -1,17 +1,17 @@
 use super::protocol::{
-    collect_entries, emit_progress, new_task_id, should_emit, task_id_hex_to_bytes, write_string,
-    CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_DISCONNECT, MODE_FILE_TASK_AUTH, MODE_FOLDER_TASK_AUTH,
-    MODE_HANDSHAKE, REPLY_ACCEPTED,
+    collect_entries, emit_progress, new_task_id, read_string, should_emit, task_id_hex_to_bytes,
+    write_string, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, MODE_DISCONNECT, MODE_FILE_TASK_AUTH,
+    MODE_FOLDER_TASK_AUTH, MODE_HANDSHAKE, REPLY_ACCEPTED,
 };
 use super::CancelFlag;
 use crate::tls::{self, ClientTlsStream, DeviceIdentity};
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, BufWriter};
 
 /// 用户主动中断传输时返回的错误
 ///
@@ -50,6 +50,16 @@ pub struct HandshakeOutcome {
     /// 本机据此把它记进信任表：这样**下一次**连它时就能固定住这个指纹（防中间人）。
     /// 首次接触拿不到可比对的对象，只能先接受对方出示的证书 —— TOFU 的固有代价。
     pub peer_fingerprint: Option<String>,
+    /// 对端（接收方）自报的 device_id / device_name
+    ///
+    /// 只有**接受**时才有：接收端会把这两个字段紧跟在 REPLY_ACCEPTED 后面回过来。
+    /// 没有它们，本机没法把对端记进自己的信任表（信任表以 device_id 为键），
+    /// 于是「对方发起、本机接受」之后本机就发不出文件 —— 对方不认为本机被信任。
+    ///
+    /// `None` 表示对端是没这条扩展的旧版本：那 1 个字节之后它就关连接了，
+    /// 本机读不到身份，只能退回旧行为（不记信任，固定指纹仍可用）。
+    pub peer_device_id: Option<String>,
+    pub peer_device_name: Option<String>,
 }
 
 /// 发送单条路径（带 task_id 与来源身份），MODE_FILE_TASK_AUTH / MODE_FOLDER_TASK_AUTH
@@ -223,11 +233,63 @@ pub async fn send_handshake(
     write_string(&mut stream, version).await?;
     stream.flush().await?;
 
+    let reply = read_handshake_reply(&mut stream).await?;
+    Ok(HandshakeOutcome {
+        accepted: reply.accepted,
+        peer_fingerprint,
+        peer_device_id: reply.peer_device_id,
+        peer_device_name: reply.peer_device_name,
+    })
+}
+
+/// 握手应答的解析结果
+///
+/// 不含指纹 —— 指纹来自 TLS 层（`peer_fingerprint_client`），与这段字节无关。
+struct HandshakeReply {
+    accepted: bool,
+    peer_device_id: Option<String>,
+    peer_device_name: Option<String>,
+}
+
+/// 读取握手应答：1 字节结果，接受时后面再跟两段长度前缀字符串（对端身份）
+///
+/// 抽成泛型是为了能在单测里直接喂字节：这段的兼容语义比看上去脆弱 ——
+/// 旧版对端只回 1 个字节、随后立刻关连接，必须按「身份未知」降级而不是报错，
+/// 否则「新版本连旧版本」会从「能连上但发不了文件」退化成「完全连不上」。
+async fn read_handshake_reply<R: AsyncRead + Unpin>(stream: &mut R) -> Result<HandshakeReply> {
     let mut reply = [0u8; 1];
     stream.read_exact(&mut reply).await?;
-    Ok(HandshakeOutcome {
-        accepted: reply[0] == REPLY_ACCEPTED,
-        peer_fingerprint,
+    if reply[0] != REPLY_ACCEPTED {
+        return Ok(HandshakeReply {
+            accepted: false,
+            peer_device_id: None,
+            peer_device_name: None,
+        });
+    }
+
+    // 接受之后紧跟对端身份（见 server::receive_handshake）。这是同一条连接上的追加写，
+    // 正常情况下紧随 reply 到达，1 秒足够；超时或 EOF 都只说明对方是旧版本，
+    // 不该让一次已经成功的握手因此失败 —— 拿不到就按「身份未知」继续。
+    let identity = tokio::time::timeout(Duration::from_secs(1), async {
+        let id = read_string(stream).await?;
+        let name = read_string(stream).await?;
+        Ok::<_, anyhow::Error>((id, name))
+    })
+    .await;
+
+    let (peer_device_id, peer_device_name) = match identity {
+        Ok(Ok((id, name))) if !id.is_empty() => (Some(id), Some(name)),
+        Ok(Ok(_)) => (None, None),
+        _ => {
+            println!("[connect] 对端未回身份（旧版本或已断开），本次不记信任");
+            (None, None)
+        }
+    };
+
+    Ok(HandshakeReply {
+        accepted: true,
+        peer_device_id,
+        peer_device_name,
     })
 }
 
@@ -389,3 +451,67 @@ async fn write_folder_payload_v2(
 
 // 原 write_file_payload_batch / write_folder_payload_batch 随批量模式一并移除
 // （它们只服务于不带身份的 MODE_BATCH，见上方说明）。
+
+//
+// 这里钉的是「握手应答怎么解析」，也就是这次修的 bug 的协议面：
+// 接受方必须把自己的身份带回来，发起方才有键可写信任表；而旧版对端只回 1 个字节，
+// 那条路必须降级成「身份未知」而不是失败。
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transfer::protocol::REPLY_REJECTED;
+
+    /// 新版对端：accepted + 两段身份 → 解析出对方 device_id / name
+    #[tokio::test]
+    async fn accepted_reply_carries_peer_identity() {
+        let mut buf: Vec<u8> = vec![REPLY_ACCEPTED];
+        write_string(&mut buf, "dev-peer")
+            .await
+            .expect("写 device_id 失败");
+        write_string(&mut buf, "对方的电脑")
+            .await
+            .expect("写 device_name 失败");
+
+        let mut input: &[u8] = &buf;
+        let reply = read_handshake_reply(&mut input)
+            .await
+            .expect("解析握手应答失败");
+
+        assert!(reply.accepted, "accepted 字节应被识别");
+        assert_eq!(reply.peer_device_id.as_deref(), Some("dev-peer"));
+        assert_eq!(reply.peer_device_name.as_deref(), Some("对方的电脑"));
+    }
+
+    /// 旧版对端：accepted 之后立刻关连接 → 握手仍算成功，只是拿不到身份
+    ///
+    /// 这是**跨版本**的关键断言：如果这里报错，新版本连旧版本会从「连上但发不了文件」
+    /// 退化成「完全连不上」，等于用修复一个方向换来毁掉另一个方向。
+    #[tokio::test]
+    async fn accepted_without_identity_degrades_to_none() {
+        let buf: Vec<u8> = vec![REPLY_ACCEPTED];
+        let mut input: &[u8] = &buf;
+
+        let reply = read_handshake_reply(&mut input)
+            .await
+            .expect("旧版对端只回 1 个字节时不应报错");
+
+        assert!(reply.accepted, "只回 1 个字节也代表对方接受了连接");
+        assert_eq!(reply.peer_device_id, None, "拿不到身份时应按未知处理");
+        assert_eq!(reply.peer_device_name, None);
+    }
+
+    /// 被拒绝：只读 1 个字节就返回，不尝试读身份（否则会干等 1 秒超时）
+    #[tokio::test]
+    async fn rejected_reply_has_no_identity() {
+        let buf: Vec<u8> = vec![REPLY_REJECTED];
+        let mut input: &[u8] = &buf;
+
+        let reply = read_handshake_reply(&mut input)
+            .await
+            .expect("解析拒绝应答失败");
+
+        assert!(!reply.accepted);
+        assert_eq!(reply.peer_device_id, None);
+        assert_eq!(reply.peer_device_name, None);
+    }
+}

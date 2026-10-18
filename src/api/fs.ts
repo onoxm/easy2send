@@ -43,3 +43,22 @@ export const cancelTransferTasks = (taskIds: string[]) =>
  * 散着写裸 invoke，连参数名都要靠记忆对齐。
  */
 export const openFile = (path: string) => invoke<void>('open_file', { path })
+
+/** 一次清理的结果（见 `cleanPartFiles`） */
+export interface CleanPartReport {
+  /** 已删除的个数 */
+  removed: number
+  /** 删不掉（被占用 / 无权限），后端留着下次再试 */
+  failed: number
+  /** 条目已失效（文件不在了 / 不是普通文件） */
+  skipped: number
+}
+
+/**
+ * 清理上次运行遗留的 `.part` 半成品
+ *
+ * 只删「本程序登记过、且本次运行没在用」的临时文件 —— 后端从不扫目录、也不按
+ * 后缀批量删，所以不会碰浏览器之类的其它程序留下的同名后缀文件。
+ * **传输过程中调用也是安全的**：正在写的文件在 active 组里，不在清理范围内。
+ */
+export const cleanPartFiles = () => invoke<CleanPartReport>('clean_part_files')

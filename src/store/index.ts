@@ -29,6 +29,12 @@ const initialState = {
    * 默认开启：传大文件时用户多半已经切走去干别的了，「传完了」这件事只有通知能告诉他。
    * 它连同提示音一起控制 —— 两者在这个场景里是同一个「提醒」，拆开只会让用户困惑。 */
   notifyOnComplete: true,
+  /* 启动时清理上次没传完的 `.part` 半成品（设置页 → 清理未完成的文件）。
+   *
+   * 默认开启：它只删**本程序自己登记过**的临时文件（见后端 transfer/parts.rs），
+   * 而这些文件对用户没有半点用处 —— 没有断点续传，留着只会占空间。关闭这项的
+   * 理由只有一个：想自己留着半成品检查。 */
+  autoCleanPartFiles: true,
   concurrentUploads: 2, // 同时并发传输的文件数（1-5）
   /* 界面字体与字号缩放（设置页 → 外观）。
    * fontFamily 存的是**可直接写进 CSS font-family 的候选名列表**（如
@@ -71,6 +77,7 @@ export const useStore = defineGlobalState(initialState, [
       'deviceName',
       'autoCheckUpdate',
       'notifyOnComplete',
+      'autoCleanPartFiles',
       'concurrentUploads',
       'fontFamily',
       'fontScale',

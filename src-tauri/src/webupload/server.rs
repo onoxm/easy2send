@@ -1,4 +1,5 @@
 use super::state::WebUploadState;
+use crate::transfer::parts::{finish_part, register_part};
 use crate::transfer::protocol::{emit_progress, new_task_id, part_path_of, safe_join, should_emit};
 use anyhow::Result;
 use axum::body::Body as AxumBody;
@@ -245,6 +246,8 @@ async fn upload_handler(
     // 先写 `<目标名>.part`，上传完整后再改名到目标名：手机中途断线 / 切后台时，
     // 目录里留下的是一个明确的半成品，而不是看起来正常、实际截断的同名文件。
     let part_path = part_path_of(&file_path);
+    // 与 TCP 接收链路一致：登记要早于创建，手机端中途断线留下的 .part 下次才能被清掉
+    register_part(&state.app, &part_path);
     let mut file = match File::create(&part_path).await {
         Ok(f) => f,
         Err(e) => {
@@ -274,10 +277,26 @@ async fn upload_handler(
     let start = Instant::now();
     let mut field = field;
 
-    while let Ok(Some(chunk)) = field.chunk().await {
+    // ⚠️ 不能写成 `while let Ok(Some(chunk))`：那样「手机端断线（Err）」和「正常
+    // 读完（None）」会走同一个出口，已收到的半截数据随后被改名成正式文件 ——
+    // 用户得到一个看起来正常、实际被截断的文件。这正是 .part 机制要防的事。
+    loop {
+        let chunk = match field.chunk().await {
+            Ok(Some(c)) => c,
+            Ok(None) => break,
+            Err(e) => {
+                let msg = format!("上传中断，文件未收完：{}", e);
+                let _ = state.app.emit(
+                    "receive-error-v2",
+                    serde_json::json!({ "task_id": task_id, "message": msg.clone() }),
+                );
+                return (StatusCode::BAD_REQUEST, msg).into_response();
+            }
+        };
+
         if let Err(e) = file.write_all(&chunk).await {
             let _ = state.app.emit(
-                "send-error-v2",
+                "receive-error-v2",
                 serde_json::json!({
                     "task_id": task_id,
                     "message": format!("写入文件失败: {}", e),
@@ -307,13 +326,27 @@ async fn upload_handler(
         }
     }
 
+    // 字节数必须与 X-File-Size 对上才算收完。网络层不给「提前结束但没报错」留口子，
+    // 但一旦出现（代理截断、客户端只发了半个 body），宁可留 .part 也不能改名成成品。
+    if total_size > 0 && received != total_size {
+        let msg = format!("上传中断，只收到 {} / {} 字节", received, total_size);
+        let _ = state.app.emit(
+            "receive-error-v2",
+            serde_json::json!({ "task_id": task_id, "message": msg.clone() }),
+        );
+        return (StatusCode::BAD_REQUEST, msg).into_response();
+    }
+
     file.flush().await.ok();
     // tokio 的 File 在 drop 时把关闭操作丢给后台线程，Windows 上 rename 一个句柄尚未
     // 释放的文件会失败（os error 32）。into_std 拿到 std::fs::File 后同步 drop，确保句柄已关。
     drop(file.into_std().await);
     if let Err(e) = tokio::fs::rename(&part_path, &file_path).await {
+        // 这是**接收**方向的失败（文件是手机传进来的），事件名必须与方向一致 ——
+        // 这里原先写的是 send-error-v2，前端会把它当成一条发送任务失败，
+        // 结果是接收卡片不报错、发送页莫名多出一条错误。
         let _ = state.app.emit(
-            "send-error-v2",
+            "receive-error-v2",
             serde_json::json!({
                 "task_id": task_id,
                 "message": format!("落盘失败: {}", e),
@@ -321,6 +354,7 @@ async fn upload_handler(
         );
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("落盘失败: {}", e)).into_response();
     }
+    finish_part(&state.app, &part_path);
 
     // 7. 最终进度（100%）+ 完成事件
     let _ = state.app.emit(

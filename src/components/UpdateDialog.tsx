@@ -112,17 +112,6 @@ const UpdateDialog = ({
   // 老版本或流水线未写入时为 undefined，此时不展示说明块。
   const notes = update.body?.trim()
 
-  const btnList = [
-    { text: '稍后再说', variant: 'secondary' as const, onClick: handleCancel },
-    {
-      /* ono 的 Button 默认 type=primary，自带 .ono-btn-primary:hover{opacity:.9}，
-         会在设计稿的 8% 黑遮罩之上再压一层透明度，这里用 hover:opacity-100 顶掉。 */
-      text: '立即更新',
-      variant: 'primary' as const,
-      onClick: handleConfirm
-    }
-  ]
-
   return (
     <DialogShell
       className="w-130 min-h-69 p-6 gap-4 border border-line-200"
@@ -183,19 +172,37 @@ const UpdateDialog = ({
           <div className="h-.25"></div>
 
           <DialogActions className="mt-auto">
-            {btnList.map(({ text, variant, onClick }) => (
-              <Button
-                key={text}
-                className={chainClassNames(
-                  btnClass(variant),
-                  'hover:opacity-100'
-                )}
-                disabled={loading}
-                onClick={onClick}
-              >
-                {text}
-              </Button>
-            ))}
+            {/* 「稍后再说」用普通 <button>：ono 的 <Button> 默认 type=primary，会带上
+                .ono-btn-primary 的硬编码样式 —— 底色 #409eff 会把这个次按钮的「透明底」
+                冲成亮蓝，`border:none` 又把它的描边塌成 0px（2026-10-16 定位）。
+                禁用态自己声明，等价于 ono 的 .ono-btn-is-disabled。 */}
+            <button
+              className={chainClassNames(
+                btnClass('secondary'),
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+              disabled={loading}
+              onClick={handleCancel}
+            >
+              稍后再说
+            </button>
+
+            {/* 「立即更新」用 ono 的 <Button>，借它的 loading 转圈：下载期间它自带 disabled
+                并显示加载图标（.ono-is-loading，透明度 .7）。另两条：
+                · hover:opacity-100 顶掉 .ono-btn-primary:hover{opacity:.9} —— 那会在设计稿
+                  的 8% 黑遮罩之上再压一层透明度；
+                · disabled:cursor-not-allowed 补上光标 —— loading 时原生 disabled 已置位，
+                  但 ono 只加 .ono-is-loading、不加 .ono-btn-is-disabled，光标会停在手型。 */}
+            <Button
+              loading={loading}
+              className={chainClassNames(
+                btnClass('primary'),
+                'hover:opacity-100 disabled:cursor-not-allowed'
+              )}
+              onClick={handleConfirm}
+            >
+              立即更新
+            </Button>
           </DialogActions>
 
           <style>{`

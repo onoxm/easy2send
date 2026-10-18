@@ -34,8 +34,9 @@ use tls::DeviceIdentity;
 use tokio::sync::Mutex;
 use transfer::{
     cancel_transfer_tasks, connect_by_addr, connect_device, create_transfer_tasks,
-    new_peer_registry, new_task_registry, notify_disconnect, respond_connection, start_server,
-    start_transfer_task, stop_server, ServerState,
+    new_peer_registry, new_task_registry, notify_disconnect,
+    parts::{clean_part_files, PartTracker, SharedPartTracker},
+    respond_connection, start_server, start_transfer_task, stop_server, ServerState,
 };
 use trust::{list_trusted_devices, revoke_trusted_device, SharedTrustState, TrustState};
 use webupload::{
@@ -86,6 +87,14 @@ pub fn run() {
                 Arc::new(Mutex::new(TrustState::load(app.handle())));
             app.manage(trust_state);
 
+            // 未完成传输的 .part 登记表。启动时把上次运行留下的路径读成「残留」，
+            // 但**不在这里清理** —— 清不清由用户设置决定，而设置存在前端（见
+            // __root__.tsx 里那次 cleanPartFiles 调用）。后端擅自删用户的文件，
+            // 是这个功能最不该出现的行为。
+            let part_tracker: SharedPartTracker =
+                Arc::new(std::sync::Mutex::new(PartTracker::load(app.handle())));
+            app.manage(part_tracker);
+
             // 本机加密身份（自签证书 + 私钥）：首次启动生成，之后一直复用。
             //
             // 传输链路两端都要它——服务端凭它向对方出示身份，客户端凭它接受对方校验。
@@ -114,6 +123,8 @@ pub fn run() {
             start_transfer_task,
             // 中断进行中的发送任务 + 通知对端本机已断开（传输页「断开连接」）
             cancel_transfer_tasks,
+            // 清理上次运行遗留的 .part 半成品（设置页「清理未完成的文件」）
+            clean_part_files,
             notify_disconnect,
             connect_device,
             connect_by_addr,

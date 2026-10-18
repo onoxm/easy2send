@@ -3,7 +3,9 @@
 //   protocol: 协议常量 + 路径安全工具
 //   server:   接收链路
 //   client:   发送链路
+//   parts:    未完成传输的 .part 登记与清理（设置页「清理未完成的文件」）
 mod client;
+pub(crate) mod parts;
 pub(crate) mod protocol;
 mod server;
 
@@ -559,11 +561,28 @@ pub async fn connect_device(
                     .lock()
                     .await
                     .insert(addr.clone(), info.device_name.clone());
-                // 记住对端的证书指纹，后续传输连接据此固定它（防中间人）
+                // 握手是**双向确认**：本机用户点了「连接这台设备」，对端用户点了「接受」。
+                // 这两次点击各自授权了一次「允许对方给自己发文件」，所以双方都要把对方
+                // 写进信任表。只记「已知对端指纹」不够 —— 传输连接的准入判定只看信任
+                // 名单（见 server::receive_authorized），漏掉这一步就会出现
+                // 「对方发起、本机接受之后，本机发不了文件给它，反过来却可以」。
                 if let Some(fp) = outcome.peer_fingerprint {
+                    // 优先用对端自报的身份：它才是接收端写信任表时用的那个键，
+                    // 两端用同一个键才不会在设置页出现两条同名记录。
+                    let peer_id = outcome.peer_device_id.as_deref().unwrap_or(&device_id);
+                    let peer_name = outcome
+                        .peer_device_name
+                        .as_deref()
+                        .unwrap_or(&info.device_name);
                     let mut t = trust_state.lock().await;
-                    if let Err(e) = t.remember_peer(&device_id, &fp) {
-                        eprintln!("[connect] 记录对端指纹失败: {}", e);
+                    let now = crate::discovery::state::current_unix_ms();
+                    // 已经信任过就不重写整条记录：`touch` 只在**改名**时落盘，
+                    // 与接收端那条静默分支（server::receive_handshake）保持一致 ——
+                    // 否则每次连接都要写一次磁盘。
+                    if t.is_trusted_fingerprint(&fp) {
+                        t.touch_fingerprint(&fp, peer_name, now);
+                    } else if let Err(e) = t.trust(peer_id, peer_name, &fp, now) {
+                        eprintln!("[connect] 写入信任表失败: {}", e);
                     }
                 }
                 // 若用了非首选 IP，更新 info.ip 为实际成功的 IP，
@@ -613,6 +632,7 @@ pub async fn connect_device(
 pub async fn connect_by_addr(
     addr: String,
     state: tauri::State<'_, SharedDiscoveryState>,
+    trust_state: tauri::State<'_, SharedTrustState>,
     identity: tauri::State<'_, Arc<DeviceIdentity>>,
     peers: tauri::State<'_, SharedPeers>,
 ) -> Result<DeviceInfo, String> {
@@ -684,10 +704,33 @@ pub async fn connect_by_addr(
         _ => format!("未知设备({})", peer_ip),
     };
 
-    // 4. 登记进活跃对端表（退出时按 addr 逐个通知），再构造 DeviceInfo 返回
+    // 4. 写入信任表：手动连接同样是一次双向确认（本机输地址点「连接」、对端点「接受」），
+    //    两边都得把对方记进信任表，否则会出现「对方接受之后本机反而发不了文件给它」。
+    //
+    //    device_id 只能来自对端的握手回包 —— 手动连接没有发现表，addr 里只有 IP 和端口。
+    //    旧版本对端不回身份，此时退回旧行为：不记信任（本机能收、发不出去）。
+    if let (Some(fp), Some(peer_id)) = (&outcome.peer_fingerprint, &outcome.peer_device_id) {
+        let name = outcome
+            .peer_device_name
+            .as_deref()
+            .filter(|n| !n.is_empty())
+            .unwrap_or(peer_name.as_str());
+        let mut t = trust_state.lock().await;
+        let now = crate::discovery::state::current_unix_ms();
+        if t.is_trusted_fingerprint(fp) {
+            // 同上：已信任只刷新时间 / 名字，避免每次连接都重写整条记录
+            t.touch_fingerprint(fp, name, now);
+        } else if let Err(e) = t.trust(peer_id, name, fp, now) {
+            eprintln!("[connect] 手动连接写入信任表失败: {}", e);
+        }
+    }
+
+    // 5. 登记进活跃对端表（退出时按 addr 逐个通知），再构造 DeviceInfo 返回
     peers.lock().await.insert(addr.clone(), peer_name.clone());
     Ok(DeviceInfo {
-        device_id: String::new(),
+        // 有了对端自报的 device_id，就能自动填上：前端靠它匹配「对方断开」通知，
+        // 留空会让手动连接的会话在对方断开后仍显示已连接。
+        device_id: outcome.peer_device_id.clone().unwrap_or_default(),
         device_name: peer_name,
         ip: peer_ip.clone(),
         addresses: vec![peer_ip],

@@ -1,9 +1,10 @@
+use super::parts::{finish_part, register_part};
 use super::protocol::{
     bytes_to_task_id_hex, emit_progress, part_path_of, read_string, safe_join, should_emit,
-    tune_socket_buffers, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE, HANDSHAKE_CONFIRM_TIMEOUT_SECS,
-    MAX_PATH_LEN, MAX_STRING_LEN, MODE_BATCH, MODE_DISCONNECT, MODE_FILE, MODE_FILE_TASK,
-    MODE_FILE_TASK_AUTH, MODE_FOLDER, MODE_FOLDER_TASK, MODE_FOLDER_TASK_AUTH, MODE_HANDSHAKE,
-    MODE_PING, REPLY_ACCEPTED, REPLY_REJECTED,
+    tune_socket_buffers, write_string, CHUNK_SIZE, ENTRY_DIR, ENTRY_FILE,
+    HANDSHAKE_CONFIRM_TIMEOUT_SECS, MAX_PATH_LEN, MAX_STRING_LEN, MODE_BATCH, MODE_DISCONNECT,
+    MODE_FILE, MODE_FILE_TASK, MODE_FILE_TASK_AUTH, MODE_FOLDER, MODE_FOLDER_TASK,
+    MODE_FOLDER_TASK_AUTH, MODE_HANDSHAKE, MODE_PING, REPLY_ACCEPTED, REPLY_REJECTED,
 };
 use super::SharedPeers;
 use crate::discovery::state::current_unix_ms;
@@ -17,7 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 
@@ -123,7 +124,7 @@ async fn handle_client(
             receive_authorized(stream, peer_fp, &app, &save_dir, trust, mode).await?;
         }
         MODE_HANDSHAKE => {
-            receive_handshake(stream, peer, peer_fp, &app, trust, peers).await?;
+            receive_handshake(stream, peer, peer_fp, &app, state, trust, peers).await?;
         }
         MODE_DISCONNECT => {
             receive_disconnect(stream, peer, &app, peers).await?;
@@ -246,14 +247,66 @@ async fn receive_authorized(
     stream.write_all(&[REPLY_ACCEPTED]).await?;
     stream.flush().await?;
 
-    if mode == MODE_FILE_TASK_AUTH {
-        receive_file_stream(stream, app, save_dir, &task_id, TaskKind::File).await?;
-        emit_recv_complete(app, &task_id, None);
+    // 收完之后不管是成功还是中途失败，都要给前端一个「结束」事件。
+    //
+    // 此前失败的路径是空的：出错只 eprintln，前端只收到 start/progress 两种事件 ⇒
+    // 对方被强杀或断网时，本机卡片会永远停在「传输中」、进度不动，既没报错也没提示，
+    // 用户只能自己发现不对劲然后离开页面。发送方向早就有 send-error-v2 兜底，
+    // 接收方向必须对称 —— 否则「问一句传到哪了」这个最普通的疑问都答不上来。
+    let result = if mode == MODE_FILE_TASK_AUTH {
+        receive_file_stream(stream, app, save_dir, &task_id, TaskKind::File).await
     } else {
-        receive_folder_stream(stream, app, save_dir, &task_id, TaskKind::Folder).await?;
-        emit_recv_complete(app, &task_id, None);
+        receive_folder_stream(stream, app, save_dir, &task_id, TaskKind::Folder).await
+    };
+
+    match result {
+        Ok(_) => {
+            emit_recv_complete(app, &task_id, None);
+            Ok(())
+        }
+        Err(e) => {
+            emit_recv_error(app, &task_id, &e);
+            Err(e)
+        }
     }
-    Ok(())
+}
+
+/// 接收失败 / 中途断流：把这张卡片标成失败
+///
+/// 与发送方向的 `send-error-v2` 是**两个事件**，不能合并：方向不同，卡片要落在
+/// 不同的标签页里，共用一个事件名会让接收失败显示到「发送任务」页去。
+fn emit_recv_error(app: &AppHandle, task_id: &str, error: &anyhow::Error) {
+    let _ = app.emit(
+        "receive-error-v2",
+        serde_json::json!({
+            "task_id": task_id,
+            "message": recv_error_message(error),
+        }),
+    );
+}
+
+/// 把底层错误翻成用户看得懂的一句话
+///
+/// io 层的断流原文是 "unexpected end of file" —— 既不是中文，也没说清发生了什么。
+/// 那一刻用户唯一需要知道的事就是「对方断了，没传完」，剩下的他自己会重传。
+fn recv_error_message(error: &anyhow::Error) -> String {
+    // 顺着 error 链找 io 错误：中间若被 context 包过一层，最外层的类型就不是
+    // io::Error 了，只查 downcast_ref 会漏判
+    for cause in error.chain() {
+        if let Some(io) = cause.downcast_ref::<std::io::Error>() {
+            use std::io::ErrorKind;
+            if matches!(
+                io.kind(),
+                ErrorKind::UnexpectedEof
+                    | ErrorKind::ConnectionReset
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::BrokenPipe
+            ) {
+                return "对方中断了连接，文件未收完".to_string();
+            }
+        }
+    }
+    format!("接收失败：{}", error)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -281,11 +334,18 @@ fn emit_recv_complete(app: &AppHandle, task_id: &str, display: Option<&str>) {
 ///
 /// 注意这里**不是**授权点：即便握手通过，随后的传输连接仍会各自查一次信任表
 /// （见 receive_authorized）。握手只负责「决定要不要把这台设备记进信任表」。
+///
+/// **接受时要把本机身份回给对方**（device_id + device_name，紧随 REPLY_ACCEPTED）。
+/// 原因是信任必须双向成立：用户点了「接受」= 我允许它发给我，而对方点了「连接」=
+/// 它允许我发给它，两边是同一次双向确认。少了身份，发起方拿不到本机 device_id，
+/// 就没法把本机记进它自己的信任表 —— 表现就是「对方发起、我接受之后，我发不了文件
+/// 给它」而反过来可以。
 async fn receive_handshake(
     stream: &mut ServerTlsStream,
     peer: SocketAddr,
     peer_fp: &str,
     app: &AppHandle,
+    state: &SharedDiscoveryState,
     trust: &SharedTrustState,
     peers: &SharedPeers,
 ) -> Result<()> {
@@ -375,12 +435,65 @@ async fn receive_handshake(
             .insert(format!("{}:{}", peer.ip(), server_port), device_name.clone());
     }
 
-    let reply = if accepted {
-        REPLY_ACCEPTED
+    // 回包：接受时紧跟本机身份（device_id + device_name）。
+    //
+    // 只回 1 个字节时，发起方不知道自己刚才连的是哪台设备 —— 它有 IP 和指纹，
+    // 但信任表是以 device_id 为键、设置页也要显示名字。所以身份必须由接收方自报。
+    // 旧版发起方只会读走这 1 个字节然后关连接，多出来的两段字符串落在它的接收
+    // 缓冲区里随连接一起丢弃，不会影响它。
+    if accepted {
+        let (self_device_id, self_device_name) = self_identity(state, app).await;
+        write_handshake_reply(stream, true, &self_device_id, &self_device_name).await?;
     } else {
-        REPLY_REJECTED
+        write_handshake_reply(stream, false, "", "").await?;
+    }
+    Ok(())
+}
+
+/// 取本机身份（device_id + device_name），用于握手应答
+///
+/// device_id 优先取 discovery 已加载的那份，没有就现读一次持久化文件：接收服务器
+/// 比 `start_discovery` 先启动（见 `__root__.tsx` 的启动顺序），这个空窗期里对方
+/// 完全可能连进来。回空串会让发起方无法把本机写进信任表（信任表以 device_id 为键），
+/// 表现就是那条单向的老毛病 —— 所以这里宁可多读一次文件。
+async fn self_identity(state: &SharedDiscoveryState, app: &AppHandle) -> (String, String) {
+    let (cached, device_name) = {
+        let s = state.lock().await;
+        (
+            s.self_device_id.clone(),
+            s.last_config
+                .as_ref()
+                .map(|c| c.device_name.clone())
+                .unwrap_or_default(),
+        )
     };
-    stream.write_all(&[reply]).await?;
+
+    let device_id = match cached {
+        Some(id) if !id.is_empty() => id,
+        _ => crate::discovery::device_id::get_or_create_device_id(app)
+            .await
+            .unwrap_or_default(),
+    };
+    (device_id, device_name)
+}
+
+/// 写握手应答：1 字节结果 +（接受时）本机身份
+///
+/// 抽成泛型是为了能在单测里断言真实字节 —— 这段是**跨版本协议**：
+/// 旧版发起方只读那 1 个字节，所以「多写的两段会不会把它弄坏」必须一眼可验。
+async fn write_handshake_reply<W: AsyncWrite + Unpin>(
+    stream: &mut W,
+    accepted: bool,
+    self_device_id: &str,
+    self_device_name: &str,
+) -> Result<()> {
+    if accepted {
+        stream.write_all(&[REPLY_ACCEPTED]).await?;
+        write_string(stream, self_device_id).await?;
+        write_string(stream, self_device_name).await?;
+    } else {
+        stream.write_all(&[REPLY_REJECTED]).await?;
+    }
     stream.flush().await?;
     Ok(())
 }
@@ -458,6 +571,9 @@ async fn receive_file_stream(
     // 先写临时文件、写完再改名（见 part_path_of）：传输中断时目录里留下的是
     // `xxx.part`，而不是一个看起来正常、实际被截断的文件。
     let part_path = part_path_of(&file_path);
+    // 登记必须早于创建：两步之间被强杀的话，盘上会多一个没人知道、永远清不掉的
+    // 半成品（见 parts 模块头）
+    register_part(app, &part_path);
     let mut file = File::create(&part_path).await?;
 
     let mut received = 0u64;
@@ -496,6 +612,8 @@ async fn receive_file_stream(
     // 释放的文件会失败（os error 32）。into_std 拿到 std::fs::File 后同步 drop，确保句柄已关。
     drop(file.into_std().await);
     tokio::fs::rename(&part_path, &file_path).await?;
+    // 改名之后它已是正式文件，从登记表摘掉：否则下次启动的清理会去删一个成品
+    finish_part(app, &part_path);
     Ok((filename, total_size, received))
 }
 
@@ -558,6 +676,7 @@ async fn receive_folder_stream(
             }
             // 与单文件一致：先写 .part 再改名，中途失败时目录里留的是明确的半成品
             let part_path = part_path_of(&target);
+            register_part(app, &part_path);
             let mut file = File::create(&part_path).await?;
 
             let mut remaining = file_size;
@@ -589,6 +708,7 @@ async fn receive_folder_stream(
             // 与单文件同样的原子落盘：句柄确实释放后再改名
             drop(file.into_std().await);
             tokio::fs::rename(&part_path, &target).await?;
+            finish_part(app, &part_path);
         } else {
             return Err(anyhow!("未知的条目类型: {}", entry_type));
         }
@@ -617,3 +737,47 @@ async fn receive_folder_stream(
 // 此处原有 receive_batch（MODE_BATCH 的接收端）。该模式不带来源身份、
 // 无法参与信任校验，已随发送端的批量路径一并移除——批量传输现在由
 // create_transfer_tasks + start_transfer_task 逐条建连完成，每条都带 device_id。
+
+//
+// 这里钉的是握手应答的**字节布局**：接受时后面必须紧跟本机身份，拒绝时只有 1 个字节。
+// 之所以值得单独测，是因为这段跨版本 —— 旧版发起方只读第一个字节就走，
+// 布局一旦被改动（比如把身份挪到拒绝分支、或调换两段顺序），旧版对端就会读到乱码。
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 接受：1 字节 accepted + device_id + device_name，且不留多余内容
+    #[tokio::test]
+    async fn accepted_reply_carries_identity_after_status_byte() {
+        let mut buf: Vec<u8> = Vec::new();
+        write_handshake_reply(&mut buf, true, "dev-me", "我的电脑")
+            .await
+            .expect("写握手应答失败");
+
+        let mut input: &[u8] = &buf;
+        let mut status = [0u8; 1];
+        input.read_exact(&mut status).await.expect("读状态字节失败");
+        assert_eq!(status[0], REPLY_ACCEPTED, "第一个字节必须是接受");
+        assert_eq!(
+            read_string(&mut input).await.expect("读 device_id 失败"),
+            "dev-me",
+            "接受应答必须带上本机 device_id —— 发起方靠它写信任表"
+        );
+        assert_eq!(
+            read_string(&mut input).await.expect("读 device_name 失败"),
+            "我的电脑"
+        );
+        assert!(input.is_empty(), "接受应答之后不该再有多余字节");
+    }
+
+    /// 拒绝：只有 1 个字节，不附身份
+    #[tokio::test]
+    async fn rejected_reply_is_status_byte_only() {
+        let mut buf: Vec<u8> = Vec::new();
+        write_handshake_reply(&mut buf, false, "dev-me", "我的电脑")
+            .await
+            .expect("写握手应答失败");
+
+        assert_eq!(buf, vec![REPLY_REJECTED], "拒绝时不该回身份");
+    }
+}

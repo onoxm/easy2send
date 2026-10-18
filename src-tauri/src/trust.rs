@@ -60,8 +60,10 @@ struct TrustFile {
     devices: Vec<TrustedDevice>,
     /// 已知对端指纹：device_id -> 证书指纹
     ///
-    /// 刻意与 `devices` 分开：`devices` 表示「我允许它连入本机」，
-    /// 而这里只表示「我主动连过它、记得它长什么样」。见 `remember_peer`。
+    /// ⚠️ **只读兼容**：这是「只记指纹、不做准入」时代的落盘字段。现在握手一旦被
+    /// 对方接受，发起方也会把对端写进 `devices`（双向确认，见 transfer::connect_device），
+    /// 所以新数据不会再写这里。仍然保留读取：升级前的文件里有这份数据，
+    /// 丢掉会让 `pinned_fingerprint_of` 少一条防中间人的依据。
     #[serde(default)]
     known_peers: HashMap<String, String>,
 }
@@ -69,7 +71,7 @@ struct TrustFile {
 pub struct TrustState {
     path: PathBuf,
     trusted: HashMap<String, TrustedDevice>,
-    /// 已知对端指纹（不含准入语义，只用于固定对端证书）
+    /// 已知对端指纹（旧版遗留的只读数据，不再写入；见 `TrustFile::known_peers`）
     known_peers: HashMap<String, String>,
     /// 已弹出询问、等待用户决策的握手：device_id -> 结果回传通道
     pending: HashMap<String, oneshot::Sender<bool>>,
@@ -225,26 +227,10 @@ impl TrustState {
         self.touch_fingerprint(fingerprint, "", now);
     }
 
-    /// 记住一台本机主动连过的设备的证书指纹
-    ///
-    /// **这不是「信任」。** 区别很关键：`trust()` 表示「我允许它往本机写文件」，
-    /// 而这里只表示「我发起到它的连接时，能认出是不是同一台机器」。混在一起会让
-    /// 「连过对方一次」意外变成「同意对方连我」——方向完全不同，不能合并。
-    pub fn remember_peer(&mut self, device_id: &str, fingerprint: &str) -> Result<()> {
-        if device_id.is_empty() || fingerprint.is_empty() {
-            return Ok(());
-        }
-        if self.known_peers.get(device_id).map(|f| f == fingerprint) == Some(true) {
-            return Ok(()); // 没变化就不必落盘
-        }
-        self.known_peers
-            .insert(device_id.to_string(), fingerprint.to_string());
-        self.save()
-    }
-
     /// 取本机记录的某台设备证书指纹，用于**主动连接时**固定对端（防中间人）
     ///
-    /// 两个来源：已信任名单（用户确认过），以及「连过一次」的已知对端。
+    /// 两个来源：已信任名单（握手成功过的设备都在里面），以及旧版落盘文件里的
+    /// 「已知对端」（只读，见 `TrustFile::known_peers`）。
     /// 都没有就返回 None ⇒ 调用方按首次接触处理（不固定）。
     /// 旧记录（无指纹）同样返回 None。
     pub fn pinned_fingerprint_of(&self, device_id: &str) -> Option<String> {

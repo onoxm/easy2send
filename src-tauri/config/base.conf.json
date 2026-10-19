@@ -7,5 +7,6 @@
   "fontFamily": "",
   "fontScale": 100,
   "closeAction": "ask",
-  "notifyOnComplete": true
+  "notifyOnComplete": true,
+  "autoCleanPartFiles": true
 }

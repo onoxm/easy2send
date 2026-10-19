@@ -3,7 +3,7 @@ import { IconCopy } from '@tabler/icons-react'
 import { copyText, portalRenderer } from 'ono-react-element'
 import { useEffect, useRef, useState } from 'react'
 import { DialogShell, DialogTitle } from './DialogShell'
-import { innerToast } from './toast'
+import { toast } from './toast'
 
 interface QrUploadDialogProps {
   /** 二维码内容（含 token 的完整 URL，由调用方在启动服务器后传入） */
@@ -92,7 +92,7 @@ const QrUploadDialog = ({
                   <button
                     onClick={() => {
                       copyText(url)
-                      innerToast.success('已复制到剪贴板')
+                      toast.success('已复制到剪贴板')
                     }}
                   >
                     <IconCopy size={14} stroke={1.5} />

@@ -30,13 +30,19 @@ export const PeerIdentity = ({
     )}
   >
     <p className="text-ink-900 text-card/[1.4615] truncate">{name}</p>
-    <p className="text-caption text-ink-400 font-normal truncate">{subtitle}</p>
+    <p className="text-caption font-normal truncate text-ink-400">{subtitle}</p>
   </div>
 )
 
 /** 身份块左侧的图标位（36×36 · surface.muted 底） */
-export const PeerAvatar = ({ platform }: { platform: Platform }) => (
+export const PeerAvatar = ({
+  size = 20,
+  platform
+}: {
+  size?: number
+  platform: Platform
+}) => (
   <div className="w-9 h-9 shrink-0 bg-surface-muted rounded-md flex justify-center items-center text-ink-600">
-    <PlatformIcon platform={platform} size={20} />
+    <PlatformIcon platform={platform} size={size} />
   </div>
 )

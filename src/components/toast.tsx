@@ -1,5 +1,5 @@
 import type { PromiseToastOptionsType, ToastProps } from 'ono-react-element'
-import { toast } from 'ono-react-element'
+import { toast as innerToast } from 'ono-react-element'
 
 const className = 'bg-surface-base text-ink-900 border border-line-200'
 
@@ -10,12 +10,12 @@ const formatOptions = (options: string | ToastProps) => {
   return Object.assign({ className }, options)
 }
 
-export const innerToast: typeof toast = {
-  success: options => toast.success(formatOptions(options)),
-  error: options => toast.error(formatOptions(options)),
-  warning: options => toast.warning(formatOptions(options)),
+export const toast: typeof innerToast = {
+  success: options => innerToast.success(formatOptions(options)),
+  error: options => innerToast.error(formatOptions(options)),
+  warning: options => innerToast.warning(formatOptions(options)),
   promise: (promise, options) =>
-    toast.promise(
+    innerToast.promise(
       promise,
       Object.assign({ className }, options) as PromiseToastOptionsType
     )

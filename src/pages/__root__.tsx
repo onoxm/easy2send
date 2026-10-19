@@ -5,7 +5,7 @@ import {
   closeConfirmDialog,
   confirmDialog,
   connectionRequestDialog,
-  innerToast
+  toast
 } from '@/components'
 import {
   useCheckUpdate,
@@ -80,7 +80,7 @@ export default () => {
     cleanPartFiles()
       .then(report => {
         if (report.removed > 0) {
-          innerToast.success(`已清理 ${report.removed} 个未完成的文件`)
+          toast.success(`已清理 ${report.removed} 个未完成的文件`)
         }
       })
       // 清理失败不打扰用户：它只是收尾工作，不影响收发文件
@@ -209,7 +209,7 @@ export default () => {
         useStore.setState({ connectedDevice: null })
         navigate('/')
         // 页面会自己跳回首页，但不说明原因的话用户会以为自己点错了什么
-        innerToast.warning(`${device_name || '对方'}已断开连接`)
+        toast.warning(`${device_name || '对方'}已断开连接`)
       },
       // 退出请求：窗口关闭与托盘「退出」都被后端拦在这里，等本机回话
       // （见后端 common/exit.rs）。两条路要问的问题不一样，靠 payload.source 区分。

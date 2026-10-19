@@ -32,10 +32,6 @@
   color-scheme: dark;
 }
 
-.little_btn {
-  @apply border border-line-200 rounded-md text-ink-600 shrink-0;
-}
-
 .input {
   @apply px-[11px] py-[8.5px] rounded-md font-normal outline-none;
 }

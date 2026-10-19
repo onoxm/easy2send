@@ -4,11 +4,11 @@ import { restartApp } from '@/api/tauri'
 import { listTrustedDevices, revokeTrustedDevice } from '@/api/trust'
 import {
   BackButton,
-  innerToast,
+  IconButton,
   Logo,
   PeerIdentity,
   Select,
-  Tip
+  toast
 } from '@/components'
 import { useStore, type CloseAction } from '@/store'
 import type { TrustedDevice } from '@/types/trust'
@@ -73,7 +73,7 @@ export default () => {
     try {
       setTrustedDevices(await listTrustedDevices())
     } catch (e) {
-      innerToast.error(`读取已信任设备失败: ${e}`)
+      toast.error(`读取已信任设备失败: ${e}`)
     }
   }
 
@@ -82,9 +82,9 @@ export default () => {
     try {
       await revokeTrustedDevice(deviceId)
       await refreshTrustedDevices()
-      innerToast.success(`已取消对「${deviceName}」的信任`)
+      toast.success(`已取消对「${deviceName}」的信任`)
     } catch (e) {
-      innerToast.error(`取消信任失败: ${e}`)
+      toast.error(`取消信任失败: ${e}`)
     }
   }
 
@@ -101,15 +101,15 @@ export default () => {
     try {
       const report = await cleanPartFiles()
       if (report.removed > 0) {
-        innerToast.success(`已清理 ${report.removed} 个未完成的文件`)
+        toast.success(`已清理 ${report.removed} 个未完成的文件`)
       } else if (report.failed > 0) {
         // 被占用（常见于下载目录正被别的程序索引）不算失败，下次启动会自动重试
-        innerToast.warning(`${report.failed} 个文件被占用，稍后会自动重试`)
+        toast.warning(`${report.failed} 个文件被占用，稍后会自动重试`)
       } else {
-        innerToast.success('没有需要清理的文件')
+        toast.success('没有需要清理的文件')
       }
     } catch (e) {
-      innerToast.error(`清理失败: ${e}`)
+      toast.error(`清理失败: ${e}`)
     }
   }
 
@@ -173,7 +173,7 @@ export default () => {
     try {
       await openUrl('https://github.com/onoxm/easy2send')
     } catch (e) {
-      innerToast.error(`打开仓库地址失败: ${e}`)
+      toast.error(`打开仓库地址失败: ${e}`)
     }
   }
 
@@ -190,18 +190,15 @@ export default () => {
             className="input bg-surface-muted text-ink-600 text-body/[1.4167] flex-1 cursor-default"
           />
           {savePathBtnList.map(({ txt, icon, onClick }) => (
-            /* 设计规范「08 悬浮说明 · 图标按钮提示」（65:7）正是用「打开文件夹 /
-               更改保存路径」这两个气泡演示图标按钮的悬停提示，所以原生 title
-               换成气泡 —— 浏览器原生提示跟设计稿的气泡是两回事 */
-            <Tip key={txt} content={txt}>
-              <button
-                aria-label={txt}
-                className="little_btn p-2.25 state-neutral"
-                onClick={onClick}
-              >
-                {icon}
-              </button>
-            </Tip>
+            <IconButton
+              key={txt}
+              title={txt}
+              ariaLabel={txt}
+              className="p-2.25"
+              onClick={onClick}
+            >
+              {icon}
+            </IconButton>
           ))}
         </>
       )
@@ -244,7 +241,7 @@ export default () => {
             try {
               await setDeviceName(deviceName)
             } catch (e) {
-              innerToast.error(`设备别名修改失败: ${e}`)
+              toast.error(`设备别名修改失败: ${e}`)
             }
           }}
         />
@@ -259,6 +256,7 @@ export default () => {
           <div className="w-45">
             <FontPicker
               value={fontFamily}
+              showOptionEntries={10}
               onChange={v => useStore.setState({ fontFamily: v })}
             />
           </div>

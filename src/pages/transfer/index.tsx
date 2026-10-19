@@ -7,7 +7,7 @@ import {
   type TransferTaskSeed
 } from '@/api/fs'
 import { stopWebUpload } from '@/api/webupload'
-import { BackButton, confirmDialog, Layout, PlatformIcon } from '@/components'
+import { BackButton, confirmDialog, PlatformIcon } from '@/components'
 import { useNotification, useQuery, useTauriDrag } from '@/hooks'
 import { useStore } from '@/store'
 import type { TransferTask, TransferType } from '@/types'
@@ -42,13 +42,15 @@ interface ProgressPayload {
 }
 
 export default () => {
-  const { connectedDevice, concurrentUploads, ip, port, savePath } = useStore([
-    'ip',
-    'port',
-    'savePath',
-    'connectedDevice',
-    'concurrentUploads'
-  ])
+  const { connectedDevice, concurrentUploads, ip, port, savePath, version } =
+    useStore([
+      'ip',
+      'port',
+      'version',
+      'savePath',
+      'connectedDevice',
+      'concurrentUploads'
+    ])
   const navigate = useNavigate()
   const tab = useQuery().tab as TransferType | null
   const sendNotification = useNotification()
@@ -515,7 +517,7 @@ export default () => {
     .sort((a, b) => a.createdAt - b.createdAt)
 
   return (
-    <Layout>
+    <div className="w-full h-full flex flex-col items-center justify-between py-5 px-8">
       <div className="h-full flex flex-col w-[92%] gap-[14px]">
         <div className="flex gap-3 items-center">
           <BackButton onClick={handleBack} />
@@ -596,6 +598,10 @@ export default () => {
           <TaskCardList visibleTasks={visibleTasks} />
         )}
       </div>
-    </Layout>
+
+      <p className="text-center text-caption text-ink-400">
+        Easy2Send v{version}
+      </p>
+    </div>
   )
 }
